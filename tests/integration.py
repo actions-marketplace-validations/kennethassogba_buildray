@@ -117,6 +117,21 @@ with tempfile.TemporaryDirectory(prefix="buildray integration ") as directory:
     assert multi_report["compile_commands_analyzed"] == 2
     assert multi_report["removed_includes"] == 0, multi_report
 
+    # Include-cleaner can call a wrapper unused while proposing a new direct
+    # provider include. Deleting only the wrapper breaks the real compilation.
+    provider = root / "transitive provider"
+    project(provider)
+    (provider / "provider.hpp").write_text("#pragma once\ninline int answer() { return 0; }\n")
+    (provider / "wrapper.hpp").write_text('#pragma once\n#include "provider.hpp"\nstruct Unused {};\n')
+    (provider / "main file.cpp").write_text('#include "wrapper.hpp"\nint main() { return answer(); }\n')
+    provider_work = root / "provider-result"
+    optimize(provider, provider_work)
+    provider_report = json.loads((provider_work / "report.json").read_text())
+    assert provider_report["preflight_compile_commands"] >= 1, provider_report
+    assert len(provider_report["preflight_rejected_files"]) == 1, provider_report
+    assert provider_report["removed_includes"] == 0 and provider_report["patch_validated"]
+    assert (provider_work / "candidate-source/main file.cpp").read_bytes() == (provider / "main file.cpp").read_bytes()
+
     # Reject launcher overrides and targets absent from the default build:
     # every C++ compilation in the database must actually be measured.
     override = root / "override"
@@ -167,6 +182,30 @@ with tempfile.TemporaryDirectory(prefix="buildray integration ") as directory:
     optimize(linked, root / "linked-result", expected=1)
     assert external.read_text() == "int main() {}\n"
 
+    # Some projects (SentencePiece) create source links to fetched dependencies
+    # during configure. Both copies must start before those mutations happen.
+    generated = root / "generated-link"
+    project(generated)
+    with (generated / "CMakeLists.txt").open("a") as stream:
+        stream.write('file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/dependency")\n'
+                     'file(CREATE_LINK "${CMAKE_BINARY_DIR}/dependency" '
+                     '"${CMAKE_CURRENT_SOURCE_DIR}/generated" SYMBOLIC)\n'
+                     'file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/generated.cpp" '
+                     '"#include <vector>\\nint generated() { return 0; }\\n")\n'
+                     'add_library(generated OBJECT generated.cpp)\n')
+    generated_work = root / "generated-link-result"
+    optimize(generated, generated_work)
+    assert not (generated / "generated").exists()
+    assert not (generated / "generated.cpp").exists()
+    generated_report = json.loads((generated_work / "report.json").read_text())
+    assert generated_report["generated_compile_commands_skipped"] == 1
+    assert generated_report["translation_units_analyzed"] == 1
+    assert "generated.cpp" not in (generated_work / "includes.patch").read_text()
+    run("git", "apply", "--check", str(generated_work / "includes.patch"), cwd=generated)
+    for variant in ["baseline", "candidate"]:
+        assert (generated_work / f"{variant}-source/generated").resolve() == (
+            generated_work / f"{variant}-build/dependency")
+
     # Force a plausible include-cleaner false positive, then ensure validation
     # catches it. The fake analyzer is only used in this failure-path test.
     broken = root / "broken-candidate"
@@ -193,6 +232,27 @@ else:
     assert broken_report["phase"] == "candidate_validation" and broken_report["status"] == "failed"
     assert broken_report["patch_recommended"] is False and "baseline" not in broken_report
     assert "#include <vector>" in (broken / "main file.cpp").read_text()
+
+    # A declaration can survive while a template definition disappears. The
+    # compiler accepts the file, but the complete build must reject the link.
+    linking = root / "link-failure"
+    project(linking)
+    (linking / "declaration.hpp").write_text("#pragma once\ntemplate<class T> int compute(T);\n")
+    (linking / "implementation.hpp").write_text('#pragma once\n#include "declaration.hpp"\n'
+                                               'template<class T> int compute(T) { return 0; }\n')
+    prefix = '#include "declaration.hpp"\n'
+    implementation = '#include "implementation.hpp"\n'
+    (linking / "main file.cpp").write_text(prefix + implementation + 'int main() { return compute(0); }\n')
+    link_tidy = root / "link-tidy"
+    link_tidy.write_text(fake.read_text().replace("'Offset': 0, 'Length': 18",
+                                                f"'Offset': {len(prefix)}, 'Length': {len(implementation)}"))
+    link_tidy.chmod(0o755)
+    link_work = root / "link-result"
+    optimize(linking, link_work, "--clang-tidy", str(link_tidy), expected=1)
+    link_report = json.loads((link_work / "report.json").read_text())
+    assert link_report["phase"] == "candidate_validation" and not link_report["patch_validated"]
+    link_log = (link_work / "logs/candidate-validation-build.log").read_text()
+    assert "undefined reference" in link_log or "undefined symbol" in link_log
 
     # Some headers have runtime registration side effects: compilation alone
     # would pass. A candidate test failure must also invalidate the patch.

@@ -1,5 +1,7 @@
 #include <unistd.h>
 
+#include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <stdexcept>
 
@@ -18,6 +20,35 @@ void rejects(Function action, const char* message) {
     }
     throw std::runtime_error(message);
 }
+buildray::json::Value measurement(std::vector<double> times) {
+    using namespace buildray;
+    json::Array samples;
+    for (const auto value : times) samples.push_back(json::Object{{"wall_seconds", value}});
+    return json::Object{
+        {"schema_version", 1},
+        {"command", "measure"},
+        {"status", "passed"},
+        {"runs", static_cast<std::int64_t>(times.size())},
+        {"baseline_tests_passed", 1},
+        {"compiler_version", "test compiler"},
+        {"cmake_version", "test cmake"},
+        {"ninja_version", "test ninja"},
+        {"baseline", json::Object{{"samples", std::move(samples)}, {"median_seconds", 99999}}},
+        {"measurement_context", json::Object{{"method", "clean-build-warm-filesystem-v1"},
+                                             {"buildray_version", BUILDRAY_VERSION},
+                                             {"sampling", "paired_alternating"},
+                                             {"session", "unit"},
+                                             {"jobs", 2},
+                                             {"cpu_affinity_count", 2},
+                                             {"cpu_model", "unit CPU"},
+                                             {"architecture", "test"},
+                                             {"kernel", "test kernel"},
+                                             {"cpu_quota", "max"},
+                                             {"tests_required", true},
+                                             {"cmake_args", json::Array{}},
+                                             {"cache_flags", json::Object{}},
+                                             {"environment_flags", json::Object{}}}}};
+}
 }  // namespace
 
 int main() {
@@ -29,6 +60,46 @@ int main() {
         require(median({8, 1, 3, 4}) == 3.5, "even median");
         require(mad({1, 2, 3}) == 1, "MAD");
         rejects([] { median({}); }, "empty median must fail");
+        const auto before = measurement({10, 10.01, 9.99});
+        const auto slow = measurement({12, 12.01, 11.99});
+        const auto regression = compare_reports(before, slow, 5);
+        require(regression.exit_code == 3 && !*regression.report.getBoolean("gate_passed"),
+                "regression gate");
+        require(std::abs(*regression.report.getNumber("wall_change_percent") - 20) < 0.0001,
+                "recompute statistics from raw samples, not reported medians");
+        require(compare_reports(before, slow, 25).report.getString("performance_result") ==
+                    "within_budget",
+                "budget respected");
+        require(compare_reports(before, measurement({9, 9.01, 8.99}), 5)
+                        .report.getString("performance_result") == "improved",
+                "improvement");
+        require(compare_reports(measurement({5, 10, 15}), measurement({6, 11, 16}), 0)
+                        .report.getString("performance_result") == "inconclusive",
+                "noise must not fail the build");
+        rejects([&] { compare_reports(before, measurement({1, 2}), 5); }, "short sample set");
+        rejects([&] { compare_reports(before, measurement({0, 1, 2}), 5); }, "invalid sample");
+        rejects([&] { compare_reports(before, slow, -1); }, "negative budget");
+        rejects([&] { compare_reports(before, measurement({1e308, 1e308, 1e308}), 5); },
+                "statistics overflow must fail");
+        auto malformed = measurement({10, 10, 10});
+        (*malformed.getAsObject())["compiler_version"] = nullptr;
+        rejects([&] { compare_reports(malformed, malformed, 5); }, "tool version type");
+        auto incompatible = measurement({10, 10, 10});
+        (*incompatible.getAsObject()->getObject("measurement_context"))["jobs"] = 8;
+        rejects([&] { compare_reports(before, incompatible, 5); }, "different runner context");
+        incompatible = measurement({10, 10, 10});
+        (*incompatible.getAsObject())["compiler_version"] = "other compiler";
+        rejects([&] { compare_reports(before, incompatible, 5); }, "different toolchain");
+        incompatible = measurement({10, 10, 10});
+        incompatible.getAsObject()->erase("measurement_context");
+        rejects([&] { compare_reports(before, incompatible, 5); },
+                "legacy reports must be refused");
+        incompatible = measurement({10, 10, 10});
+        (*incompatible.getAsObject())["status"] = "failed";
+        rejects([&] { compare_reports(before, incompatible, 5); }, "failed measurements");
+        incompatible = measurement({10, 10, 10});
+        (*incompatible.getAsObject())["baseline_tests_passed"] = 0;
+        rejects([&] { compare_reports(before, incompatible, 5); }, "missing test validation");
         require(within("/a/b/c", "/a/b"), "containment");
         require(!within("/a/bad", "/a/b"), "containment must compare components");
         const std::string source =
@@ -49,6 +120,12 @@ int main() {
                 "continued include");
         const std::string macro = "#include SOME_HEADER\n";
         require(!removable_include(macro, {"a", 0, macro.size(), ""}), "macro include");
+        for (const auto* header : {"body.inc", "body.inl", "body.ipp", "body.tpp", "body_inl.h",
+                                   "body-inl.h", "body.inl.h"}) {
+            const std::string implementation = std::string("#include \"") + header + "\"\n";
+            require(!removable_include(implementation, {"a", 0, implementation.size(), ""}),
+                    "keep implementation headers that may provide template definitions");
+        }
         rejects([&] { apply_removals(source, {first, {"a.cpp", 0, 41, ""}}); },
                 "overlap must fail");
         fs::create_directory(temporary);
@@ -65,6 +142,10 @@ Diagnostics:
           Offset: 0
           Length: 18
           ReplacementText: ''
+        - FilePath: '/a.cpp'
+          Offset: 0
+          Length: 0
+          ReplacementText: '#include <cstdint>'
     Notes: []
     Level: Warning
     BuildDirectory: '/tmp'
@@ -78,7 +159,8 @@ Diagnostics:
 ...
 )");
         const auto fixes = read_fixes(temporary / "fixes.yaml");
-        require(fixes.size() == 1 && fixes[0].length == 18, "structured fixes filtered by check");
+        require(fixes.size() == 2 && fixes[0].length == 18 && !fixes[1].text.empty(),
+                "read provider insertions too; only removable_include authorizes deletions");
         write_file(temporary / "fixes.yaml", "Diagnostics: [unterminated");
         rejects([&] { read_fixes(temporary / "fixes.yaml"); }, "malformed YAML rejected");
         const auto success = run({"/bin/sh", "-c", "exit 0"}, temporary);
