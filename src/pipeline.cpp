@@ -10,6 +10,7 @@
 #include <iterator>
 #include <map>
 #include <optional>
+#include <regex>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -28,6 +29,7 @@ struct Variant {
     std::vector<std::string> pch_headers;
     bool dependencies = false;
     bool cmake_model = false;
+    bool active_coverage = false;
 };
 
 void checked(const std::vector<std::string>& args, const fs::path& cwd, const fs::path& log) {
@@ -109,14 +111,15 @@ void configure(const Options& options, const Variant& variant, const fs::path& e
         "-DCMAKE_UNITY_BUILD=OFF", "-DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON",
         "-DCMAKE_CXX_COMPILER_LAUNCHER=" + launcher(executable, variant.records, variant.trace, variant.dependencies)};
     args.insert(args.end(), controlled.begin(), controlled.end());
-    if (variant.dependencies) {
+    if (variant.dependencies || options.command == "headers")
         args.push_back("-DCMAKE_C_COMPILER=" + options.c_compiler);
-        args.push_back("-DCMAKE_C_COMPILER_LAUNCHER=" + launcher(executable, variant.records, false, true));
+    if (variant.dependencies || variant.active_coverage) {
+        args.push_back("-DCMAKE_C_COMPILER_LAUNCHER=" + launcher(executable, variant.records, false, variant.dependencies));
     }
     checked(args, variant.source, log);
     if (!fs::exists(variant.build / "compile_commands.json"))
         throw std::runtime_error("Project did not generate compile_commands.json");
-    if (variant.dependencies)
+    if (variant.dependencies || variant.active_coverage)
         checked({"ninja", "-C", variant.build.string(), "-t", "compdb-targets", "all"},
                 variant.source, variant.build / "active-commands.json");
 }
@@ -180,17 +183,34 @@ json::Array compiler_records(const fs::path& records) {
     return result;
 }
 
-std::set<std::string> test_names(const fs::path& inventory) {
+std::multiset<std::string> test_names(const fs::path& inventory, unsigned& normalized) {
     const auto document = read_json(inventory);
     const auto* object = document.getAsObject();
     const auto* tests = object ? object->getArray("tests") : nullptr;
     if (!tests) throw std::runtime_error("Invalid CTest inventory");
-    std::set<std::string> names;
+    std::multiset<std::string> names;
+    static const std::regex opaque(R"(([0-9]+)-byte object <[0-9A-Fa-f .-]+>)");
     for (const auto& entry : *tests) {
         const auto* definition = entry.getAsObject();
         const auto name = definition ? definition->getString("name") : std::nullopt;
         if (!name) throw std::runtime_error("Missing CTest name");
-        names.insert(name->str());
+        auto identity = name->str();
+        std::string filter;
+        if (const auto* command = definition->getArray("command"))
+            for (const auto& value : *command)
+                if (const auto argument = value.getAsString();
+                    argument && argument->starts_with("--gtest_filter="))
+                    filter = argument->str();
+        const auto slash = identity.rfind('/');
+        if (!filter.empty() && slash != std::string::npos &&
+            std::regex_match(identity.substr(slash + 1), opaque)) {
+            // GTest's opaque value printer can dump ASLR pointers. Preserve the display
+            // prefix and object size, and distinguish cases by their real execution filter.
+            identity = std::regex_replace(identity, opaque, "$1-byte object <opaque>");
+            identity += " [" + filter + "]";
+            ++normalized;
+        }
+        names.insert(std::move(identity));
     }
     return names;
 }
@@ -206,7 +226,7 @@ void verify_coverage(const Variant& variant) {
     std::size_t pch_uses = 0;
     std::map<fs::path, std::size_t> expected;
     std::set<fs::path> active;
-    if (variant.dependencies) {
+    if ((variant.dependencies || variant.active_coverage)) {
         const auto document = read_json(variant.build / "active-commands.json");
         const auto* commands = document.getAsArray();
         if (!commands) throw std::runtime_error("Invalid Ninja default-target compilation database");
@@ -227,8 +247,8 @@ void verify_coverage(const Variant& variant) {
         if (!object || !object->getString("file") || !object->getString("directory"))
             throw std::runtime_error("Invalid compilation database entry");
         fs::path file = object->getString("file")->str();
-        if (!cpp_source(file) && !(variant.dependencies && file.extension() == ".c")) continue;
-        if (variant.dependencies) {
+        if (!cpp_source(file) && !((variant.dependencies || variant.active_coverage) && file.extension() == ".c")) continue;
+        if ((variant.dependencies || variant.active_coverage)) {
             if (!object->getString("output")) throw std::runtime_error("Missing compilation output");
             fs::path output = object->getString("output")->str();
             if (output.is_relative()) output = fs::path(object->getString("directory")->str()) / output;
@@ -286,13 +306,13 @@ void verify_coverage(const Variant& variant) {
             }
             if (use) ++pch_uses;
         }
-        if (!cpp_source(file) && !(variant.dependencies && file.extension() == ".c")) continue;
+        if (!cpp_source(file) && !((variant.dependencies || variant.active_coverage) && file.extension() == ".c")) continue;
         if (file.is_relative()) file = fs::path(object->getString("directory")->str()) / file;
         ++measured[absolute_path(file)];
     }
     if (expected.empty() || measured != expected)
         throw std::runtime_error(
-            variant.dependencies ?
+            (variant.dependencies || variant.active_coverage) ?
             "Compiler coverage does not match Ninja's default all target. "
             "Every C/C++ compilation in that target must use Buildray's launcher; "
             "do not override the C or C++ compiler launcher." :
@@ -542,7 +562,7 @@ void patch(const Changes& changes, const Variant& baseline, const Variant& candi
             edited.erase(item.offset, item.length);
             write_file(candidate.source / relative, edited);
         } else {
-            write_file(candidate.source / relative, apply_removals(original, replacements));
+            write_file(candidate.source / relative, apply_include_replacements(original, replacements));
         }
         const auto diff_file = work / "file.diff";
         const auto result =
@@ -581,6 +601,8 @@ void print_summary(const json::Object& report, const fs::path& work) {
         std::cout << "Patch: " << (work / "pch.patch") << '\n';
     if (fs::exists(work / "cmake.patch"))
         std::cout << "Patch: " << (work / "cmake.patch") << '\n';
+    if (fs::exists(work / "headers.patch"))
+        std::cout << "Patch: " << (work / "headers.patch") << '\n';
     if (fs::exists(work / "headers.json"))
         std::cout << "Header profile: " << (work / "headers.json") << '\n';
 }
@@ -691,6 +713,10 @@ int automatic_pch(const Options& options, const fs::path& executable) {
 }
 }  // namespace
 
+std::vector<std::string> compile_arguments(const json::Object& entry) {
+    return compiler_arguments(entry);
+}
+
 int pipeline(const Options& options, const fs::path& executable) {
     if (options.auto_pch) return automatic_pch(options, executable);
     check_cmake_args(options.cmake_args);
@@ -753,11 +779,11 @@ int pipeline(const Options& options, const fs::path& executable) {
         checked({"ninja", "--version"}, source, logs / "ninja-version.log");
         report["cmake_version"] = read_file(logs / "cmake-version.log");
         report["ninja_version"] = read_file(logs / "ninja-version.log");
-        if (options.command == "deps") {
+        if (options.command == "deps" || options.command == "headers") {
             checked({options.c_compiler, "--version"}, source, logs / "c-compiler-version.log");
             report["c_compiler_version"] = read_file(logs / "c-compiler-version.log");
             if (report.getString("c_compiler_version")->find("clang") == llvm::StringRef::npos)
-                throw std::runtime_error("deps requires Clang for C as well as C++");
+                throw std::runtime_error("This command requires Clang for C as well as C++");
         }
         if (options.command == "deps" || options.command == "prune-links") {
             checked({"cmake", "-E", "capabilities"}, source, logs / "cmake-capabilities.json");
@@ -768,7 +794,7 @@ int pipeline(const Options& options, const fs::path& executable) {
                 (version->getInteger("major") == 4 && version->getInteger("minor").value_or(0) < 2))
                 throw std::runtime_error("Dependency analysis requires CMake 4.2+ for direct target relationships");
         }
-        if (options.command == "optimize") {
+        if (options.command == "optimize" || options.command == "headers") {
             checked({options.tidy, "--version"}, source, logs / "tidy-version.log");
             report["clang_tidy_version"] = read_file(logs / "tidy-version.log");
             checked(
@@ -784,6 +810,7 @@ int pipeline(const Options& options, const fs::path& executable) {
                           work / "candidate-records", false,
                           options.command == "pch" ? options.target : "", options.headers};
         baseline.cmake_model = candidate.cmake_model = options.command == "prune-links";
+        baseline.active_coverage = candidate.active_coverage = options.command == "headers";
         report["phase"] = "baseline_validation";
         std::cout << "Configuring baseline, warming build, running tests...\n" << std::flush;
         snapshot(base_source, baseline.source, work);
@@ -795,13 +822,15 @@ int pipeline(const Options& options, const fs::path& executable) {
         }
         // Configure scripts can write generated links or files into their source tree.
         // Prepare both inputs before either configure runs; optimize uses identical bytes.
-        if (options.command == "optimize" || options.command == "pch" || options.command == "prune-links")
+        if (options.command == "optimize" || options.command == "pch" || options.command == "prune-links" || options.command == "headers")
             snapshot(baseline.source, candidate.source, work);
         if (options.command == "compare") snapshot(source, candidate.source, work);
         SourceFiles originals;
-        if (options.command == "optimize") {
+        if (options.command == "optimize" || options.command == "headers") {
             for (const auto& entry : fs::recursive_directory_iterator(candidate.source)) {
-                if (entry.is_regular_file() && cpp_source(entry.path()))
+                const auto ext = entry.path().extension();
+                if (entry.is_regular_file() && (cpp_source(entry.path()) ||
+                    (options.command == "headers" && (ext == ".h" || ext == ".hpp" || ext == ".hh" || ext == ".hxx"))))
                     originals[entry.path().lexically_relative(candidate.source)] =
                         read_file(entry.path());
             }
@@ -978,14 +1007,21 @@ int pipeline(const Options& options, const fs::path& executable) {
                 report["removed_links"] = 1;
                 report["cmake_graph_change_verified"] = true;
             }
-            if (options.command == "optimize") {
+            if (options.command == "optimize" || options.command == "headers") {
                 // Generated headers must exist before clang-tidy parses sources.
                 clear_records(candidate.records);
                 build(options, candidate, logs / "candidate-initial-build.log");
                 verify_coverage(candidate);
-                std::cout << "Analyzing unused includes with clang-tidy...\n" << std::flush;
-                changes = analyze(options, candidate, work, originals, report);
-                patch(changes, baseline, candidate, work);
+                if (options.command == "headers") {
+                    for (auto item : analyze_headers(options, candidate.source, candidate.build, work, executable, originals, report))
+                        changes[fs::path(item.file)].push_back(std::move(item));
+                    report["validation_scope"] = "one configured Ninja default all target; observed original project headers; standalone and observed C/C++ user preflights; complete default build and CTest";
+                    patch(changes, baseline, candidate, work, "headers.patch");
+                } else {
+                    std::cout << "Analyzing unused includes with clang-tidy...\n" << std::flush;
+                    changes = analyze(options, candidate, work, originals, report);
+                    patch(changes, baseline, candidate, work);
+                }
             }
             write_json(work / "report.json", json::Object(report));
             report["phase"] = "candidate_validation";
@@ -996,37 +1032,60 @@ int pipeline(const Options& options, const fs::path& executable) {
             verify_coverage(candidate);
             const auto candidate_tests = test(options, candidate, logs, "candidate");
             report["candidate_tests_passed"] = static_cast<std::int64_t>(candidate_tests);
-            if (baseline_tests != candidate_tests ||
-                test_names(logs / "baseline-tests.json") != test_names(logs / "candidate-tests.json"))
+            unsigned baseline_opaque = 0, candidate_opaque = 0;
+            const auto baseline_names = test_names(logs / "baseline-tests.json", baseline_opaque);
+            const auto candidate_names = test_names(logs / "candidate-tests.json", candidate_opaque);
+            report["test_inventory_identity"] = json::Object{
+                {"policy", "CTest names with multiplicity; GTest opaque-byte values use stable filters"},
+                {"baseline_opaque_values", baseline_opaque},
+                {"candidate_opaque_values", candidate_opaque}};
+            if (baseline_tests != candidate_tests || baseline_names != candidate_names) {
+                json::Array missing, added;
+                for (const auto& name : baseline_names)
+                    if (baseline_names.count(name) != candidate_names.count(name) && missing.size() < 10)
+                        missing.push_back(name);
+                for (const auto& name : candidate_names)
+                    if (baseline_names.count(name) != candidate_names.count(name) && added.size() < 10)
+                        added.push_back(name);
+                report["test_inventory_difference"] = json::Object{
+                    {"missing_or_changed_multiplicity", std::move(missing)},
+                    {"added_or_changed_multiplicity", std::move(added)}};
                 throw std::runtime_error("CTest inventory changed");
+            }
             report["validation"] = baseline_tests ? "build_and_tests_passed" : "build_only";
             report["patch_validated"] = true;
-            report["phase"] = "measurement";
-            const auto [before, after] = paired_samples(options, baseline, candidate, logs);
-            auto before_summary = summarize(before);
-            auto after_summary = summarize(after);
-            const double before_median = *before_summary.getNumber("median_seconds");
-            const double after_median = *after_summary.getNumber("median_seconds");
-            const double delta = 100.0 * (after_median - before_median) / before_median;
-            const double threshold = std::max(
-                0.02 * before_median, 3 * std::max(*before_summary.getNumber("mad_seconds"),
-                                                   *after_summary.getNumber("mad_seconds")));
-            const bool changed = options.command == "pch" || !changes.empty();
-            const std::string verdict = !changed    ? "no_changes"
-                                        : options.runs < 3 ? "insufficient_samples"
-                                        : std::abs(after_median - before_median) <= threshold
-                                            ? "inconclusive"
-                                        : after_median < before_median ? "improved"
-                                                                       : "regressed";
-            report["baseline"] = std::move(before_summary);
-            report["candidate"] = std::move(after_summary);
-            report["wall_change_percent"] = delta;
-            report["performance_result"] = verdict;
-            report["noise_threshold_seconds"] = threshold;
-            report["performance_rule"] =
-                "heuristic: difference exceeds max(2% baseline, 3x max MAD); not a significance "
-                "test";
-            report["patch_recommended"] = changed && verdict == "improved";
+            if (options.command == "headers" && changes.empty()) {
+                report["performance_result"] = "no_changes";
+                report["patch_recommended"] = false;
+                report["measurement"] = "no eligible header changes; build and tests validated; benchmark skipped";
+            } else {
+                report["phase"] = "measurement";
+                const auto [before, after] = paired_samples(options, baseline, candidate, logs);
+                auto before_summary = summarize(before);
+                auto after_summary = summarize(after);
+                const double before_median = *before_summary.getNumber("median_seconds");
+                const double after_median = *after_summary.getNumber("median_seconds");
+                const double delta = 100.0 * (after_median - before_median) / before_median;
+                const double threshold = std::max(
+                    0.02 * before_median, 3 * std::max(*before_summary.getNumber("mad_seconds"),
+                                                       *after_summary.getNumber("mad_seconds")));
+                const bool changed = options.command == "pch" || !changes.empty();
+                const std::string verdict = !changed    ? "no_changes"
+                                            : options.runs < 3 ? "insufficient_samples"
+                                            : std::abs(after_median - before_median) <= threshold
+                                                ? "inconclusive"
+                                            : after_median < before_median ? "improved"
+                                                                           : "regressed";
+                report["baseline"] = std::move(before_summary);
+                report["candidate"] = std::move(after_summary);
+                report["wall_change_percent"] = delta;
+                report["performance_result"] = verdict;
+                report["noise_threshold_seconds"] = threshold;
+                report["performance_rule"] =
+                    "heuristic: difference exceeds max(2% baseline, 3x max MAD); not a significance "
+                    "test";
+                report["patch_recommended"] = changed && verdict == "improved";
+            }
         }
         if (interrupted()) throw std::runtime_error("Interrupted");
         report["phase"] = "complete";
