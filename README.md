@@ -133,8 +133,9 @@ buildray unity --source /path/to/project --target my_library \
 
 `unity` groups C/C++ files on one target to reduce repeated header parsing. It
 checks that every original source remains compiled on the same target, runs the
-complete build and CTest, then compares alternating clean builds. Name collisions
-and failing tests reject the experiment. Repeat `--unity-exclude path/to/file.cpp`
+complete build and CTest, then compares alternating clean builds. Optional
+`--unity-retries 4` isolates failed compiler groups before validation; link and
+test failures remain blocking. Repeat `--unity-exclude path/to/file.cpp`
 to keep incompatible files separate; CMake's existing per-file exclusions are
 also respected. PCH stays disabled in both variants.
 
@@ -314,3 +315,6 @@ exported requirements and failed experiments.
 standalone checks and C/C++ user validation.
 [Unity build evidence](docs/unity-validation.md) covers the measured XGrammar
 improvement, memory tradeoff and rejected corpus candidates.
+[MuJoCo compiler hotspot evidence](docs/mujoco-compile-validation.md) covers a
+manual comparison-helper refactor, three paired translation-unit measurements
+and native validation in both precisions.

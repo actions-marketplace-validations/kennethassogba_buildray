@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tarfile
@@ -22,10 +23,10 @@ def execute(args, *, cwd=None, capture=False):
                           stderr=subprocess.PIPE if capture else None, check=True)
 
 
-def integer(key, default, maximum):
+def integer(key, default, maximum, minimum=1):
     value = os.environ.get(key, default)
-    if not re.fullmatch(r"[0-9]+", value) or not 1 <= int(value) <= maximum:
-        raise ValueError(f"{key} must be between 1 and {maximum}")
+    if not re.fullmatch(r"[0-9]+", value) or not minimum <= int(value) <= maximum:
+        raise ValueError(f"{key} must be between {minimum} and {maximum}")
     return int(value)
 
 
@@ -97,10 +98,14 @@ def evidence(artifacts):
     status.write_text(json.dumps(state) + "\n")
     try:
         yield state
-    except Exception as error:
-        state.update(status="failed", error=str(error))
+    except BaseException as error:
+        interrupted = isinstance(error, KeyboardInterrupt)
+        state.update(status="interrupted" if interrupted else "failed",
+                     error=str(error) or type(error).__name__)
+        if interrupted:
+            state["exit_code"] = 130
         status.write_text(json.dumps(state) + "\n")
-        output("result", "failed")
+        output("result", state["status"])
         raise
     else:
         status.write_text(json.dumps(state) + "\n")
@@ -119,6 +124,61 @@ def retain_failure_logs(run, artifacts):
         if path == logs[-1]:
             print(f"\nBuildray failure log: {path.name}\n" + tail[-16384:].decode(errors="replace"),
                   file=sys.stderr, flush=True)
+
+
+def retain_run_evidence(run, artifacts, report):
+    for name, key in [("report.json", "report"), ("comparison.json", "comparison"),
+                      ("baseline-report.json", "baseline-report"), ("current-report.json", "current-report"),
+                      ("includes.patch", "patch"), ("pch.patch", "patch"), ("cmake.patch", "patch"), ("headers.patch", "patch"),
+                      ("unity.patch", "patch"), ("unity.json", "unity"),
+                      ("headers.json", "headers"), ("dependencies.json", "dependencies"),
+                      ("dependencies.dot", "dependency-dot"), ("selection.json", "selection"),
+                      ("links.json", "links"), ("cmake-before.json", "cmake-before"),
+                      ("cmake-after.json", "cmake-after"), ("header-cleanup.json", "header-cleanup")]:
+        item = run / name
+        if item.is_file() and not item.is_symlink():
+            shutil.copyfile(item, artifacts / name)
+            output(key, artifacts / name)
+    for item in run.glob("unity-attempt-*.json"):
+        if item.is_file() and not item.is_symlink():
+            shutil.copyfile(item, artifacts / item.name)
+    for attempt in report.get("unity_attempts", []):
+        # Only our fixed attempt labels are accepted as artifact paths.
+        index = attempt.get("attempt")
+        if type(index) is not int or not 0 <= index <= 8:
+            continue
+        label = "candidate-validation" if index == 0 else f"candidate-retry-{index}"
+        item = run / "logs" / (label + "-build.log")
+        if item.is_file() and not item.is_symlink():
+            destination = artifacts / "logs" / item.name
+            destination.parent.mkdir(exist_ok=True)
+            with item.open("rb") as stream:
+                stream.seek(max(0, item.stat().st_size - 65536))
+                destination.write_bytes(stream.read(65536))
+
+
+def run_cli(command, run, artifacts):
+    process = subprocess.Popen([str(item) for item in command])
+    try:
+        return subprocess.CompletedProcess(command, process.wait())
+    except KeyboardInterrupt:
+        # Forward a parent-only interruption, then let the CLI flush its report.
+        try:
+            process.send_signal(signal.SIGINT)
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+        finally:
+            report_file = run / "report.json"
+            try:
+                report = json.loads(report_file.read_text()) if report_file.is_file() else {}
+            except (OSError, ValueError):
+                report = {}
+            retain_run_evidence(run, artifacts, report)
+            retain_failure_logs(run, artifacts)
+        raise
 
 
 def main():
@@ -155,6 +215,7 @@ def main():
         raise ValueError("prune-links requires at least three runs")
     unity_target = os.environ.get("BUILDRAY_UNITY_TARGET", "")
     batch_size = integer("BUILDRAY_UNITY_BATCH_SIZE", "4", 32)
+    unity_retries = integer("BUILDRAY_UNITY_RETRIES", "0", 8, minimum=0)
     unity_exclusions = json.loads(os.environ.get("BUILDRAY_UNITY_EXCLUDE", "[]"))
     if batch_size < 2:
         raise ValueError("unity-batch-size must be at least 2")
@@ -162,7 +223,7 @@ def main():
         raise ValueError("unity-exclude must be a JSON array of nonempty relative source paths")
     if mode == "unity" and not unity_target:
         raise ValueError("unity requires unity-target")
-    if mode != "unity" and (unity_target or unity_exclusions or batch_size != 4):
+    if mode != "unity" and (unity_target or unity_exclusions or batch_size != 4 or unity_retries):
         raise ValueError("unity options require command unity")
     forward_declarations = boolean("BUILDRAY_FORWARD_DECLARATIONS", "false")
     header_paths = json.loads(os.environ.get("BUILDRAY_HEADER_PATHS", "[]"))
@@ -213,7 +274,8 @@ def main():
             if link_dependency:
                 command.extend(["--dependency", link_dependency])
         if mode == "unity":
-            command.extend(["--target", unity_target, "--batch-size", str(batch_size)])
+            command.extend(["--target", unity_target, "--batch-size", str(batch_size),
+                            "--unity-retries", str(unity_retries)])
             for path in unity_exclusions:
                 command.extend(["--unity-exclude", path])
         if mode == "headers":
@@ -237,7 +299,7 @@ def main():
         if allow_no_tests:
             command.append("--allow-no-tests")
         command.extend(["--", *cmake_args])
-        result = subprocess.run([str(item) for item in command], check=False)
+        result = run_cli(command, work / "run", artifacts)
         report_file = work / "run/report.json"
         report = json.loads(report_file.read_text()) if report_file.is_file() else {"status": "failed"}
         action_status.update(status="complete" if report["status"] == "passed" else "failed",
@@ -246,18 +308,7 @@ def main():
             retain_failure_logs(work / "run", artifacts)
         output("result", ("cycles" if result.returncode == 5 else report.get("performance_result", "passed"))
                if report["status"] == "passed" else report["status"])
-        for name, key in [("report.json", "report"), ("comparison.json", "comparison"),
-                          ("baseline-report.json", "baseline-report"), ("current-report.json", "current-report"),
-                          ("includes.patch", "patch"), ("pch.patch", "patch"), ("cmake.patch", "patch"), ("headers.patch", "patch"),
-                          ("unity.patch", "patch"), ("unity.json", "unity"),
-                          ("headers.json", "headers"), ("dependencies.json", "dependencies"),
-                          ("dependencies.dot", "dependency-dot"), ("selection.json", "selection"),
-                          ("links.json", "links"), ("cmake-before.json", "cmake-before"),
-                          ("cmake-after.json", "cmake-after"), ("header-cleanup.json", "header-cleanup")]:
-            item = work / "run" / name
-            if item.is_file():
-                shutil.copyfile(item, artifacts / name)
-                output(key, artifacts / name)
+        retain_run_evidence(work / "run", artifacts, report)
         summary = work / ("run/headers.md" if mode == "profile" else
                           "run/dependencies.md" if mode == "deps" else "run/comparison.md")
         if summary.is_file():
@@ -279,6 +330,8 @@ def main():
                 text += f"\nPatch validated: {report.get('patch_validated', False)}. Recommended: {report.get('patch_recommended', False)}.\n"
             if mode == "unity":
                 text += f"\nUnity target: `{unity_target}`, batch size {batch_size}.\n"
+                if report.get("unity_auto_exclusions"):
+                    text += f"\nKept {len(report['unity_auto_exclusions'])} failed-group sources separate after compiler failures.\n"
                 if report.get("candidate"):
                     text += f"\nCandidate median: {report['candidate']['median_seconds']:.3f} s. Change: {report['wall_change_percent']:+.3f}% ({report['performance_result']}).\n"
                 text += f"\nPatch validated: {report.get('patch_validated', False)}. Recommended: {report.get('patch_recommended', False)}.\n"
@@ -302,6 +355,9 @@ def main():
 if __name__ == "__main__":
     try:
         sys.exit(main())
+    except KeyboardInterrupt:
+        print("buildray action: interrupted", file=sys.stderr)
+        sys.exit(130)
     except (ValueError, OSError, subprocess.CalledProcessError, tarfile.TarError) as error:
         print(f"buildray action: {error}", file=sys.stderr)
         sys.exit(1)
