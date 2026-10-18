@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <iterator>
@@ -31,7 +32,14 @@ struct Variant {
     bool cmake_model = false;
     bool active_coverage = false;
     std::string unity_target{};
+    bool links = false;
 };
+
+bool link_experiment(const Options& options) {
+    return options.command == "prune-links" || options.command == "prune-deps";
+}
+
+fs::path link_records(const Variant& variant) { return variant.records.string() + "-links"; }
 
 void checked(const std::vector<std::string>& args, const fs::path& cwd, const fs::path& log) {
     const auto result = run(args, cwd, log);
@@ -95,6 +103,7 @@ std::string launcher(const fs::path& executable, const fs::path& records, bool t
 void configure(const Options& options, const Variant& variant, const fs::path& executable,
                const fs::path& log) {
     fs::create_directories(variant.records);
+    if (variant.links) fs::create_directories(link_records(variant));
     if (variant.dependencies || variant.cmake_model)
         write_file(variant.build / ".cmake/api/v1/query/codemodel-v2", "");
     std::vector<std::string> args{"cmake",
@@ -112,13 +121,18 @@ void configure(const Options& options, const Variant& variant, const fs::path& e
         "-DCMAKE_UNITY_BUILD=OFF", "-DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON",
         "-DCMAKE_CXX_COMPILER_LAUNCHER=" + launcher(executable, variant.records, variant.trace, variant.dependencies)};
     args.insert(args.end(), controlled.begin(), controlled.end());
-    if (variant.dependencies || options.command == "headers" || options.command == "unity" ||
+    if (variant.dependencies || link_experiment(options) || options.command == "headers" || options.command == "unity" ||
         (options.command == "pch" && !options.rebuild_files.empty()))
         args.push_back("-DCMAKE_C_COMPILER=" + options.c_compiler);
     if (options.command == "unity")
         args.push_back("-DBUILDRAY_UNITY=" + std::string(variant.unity_target.empty() ? "OFF" : "ON"));
     if (variant.dependencies || variant.active_coverage) {
         args.push_back("-DCMAKE_C_COMPILER_LAUNCHER=" + launcher(executable, variant.records, false, variant.dependencies));
+    }
+    if (variant.links) {
+        const auto command = executable.string() + ";_link-launch;" + link_records(variant).string() + ";--";
+        args.push_back("-DCMAKE_CXX_LINKER_LAUNCHER=" + command);
+        args.push_back("-DCMAKE_C_LINKER_LAUNCHER=" + command);
     }
     checked(args, variant.source, log);
     if (!fs::exists(variant.build / "compile_commands.json"))
@@ -337,8 +351,22 @@ void clear_records(const fs::path& records) {
     for (const auto& entry : fs::directory_iterator(records)) fs::remove(entry.path());
 }
 
-json::Object compiler_sample(const ProcessResult& result, const json::Array& records) {
-    if (records.empty())
+void clear_variant(const Variant& variant) {
+    clear_records(variant.records);
+    if (variant.links) clear_records(link_records(variant));
+}
+
+void add_links(json::Object& summary, const Variant& variant, const fs::path& prefix, bool full) {
+    if (!variant.links) return;
+    const auto records = compiler_records(link_records(variant));
+    if (full) verify_link_coverage(cmake_dependencies(variant.source, variant.build), variant.build, records);
+    for (auto& [key, value] : link_sample(records, variant.source, variant.build))
+        summary[key] = std::move(value);
+    write_json(prefix.string() + "-linkers.json", json::Array(records));
+}
+
+json::Object compiler_sample(const ProcessResult& result, const json::Array& records, bool allow_empty = false) {
+    if (records.empty() && !allow_empty)
         throw std::runtime_error("No compiler measurements captured; launcher overridden?");
     double compiler_wall = 0;
     double compiler_cpu = 0;
@@ -367,11 +395,12 @@ json::Object compiler_sample(const ProcessResult& result, const json::Array& rec
 json::Object sample(const Options& options, const Variant& variant, const fs::path& logs,
                     const std::string& label) {
     clean(variant, logs / (label + "-clean.log"));
-    clear_records(variant.records);
+    clear_variant(variant);
     const auto result = build(options, variant, logs / (label + "-build.log"));
     verify_coverage(variant);
     auto records = compiler_records(variant.records);
     auto summary = compiler_sample(result, records);
+    add_links(summary, variant, logs / label, true);
     write_json(logs / (label + "-compilers.json"), std::move(records));
     return summary;
 }
@@ -380,11 +409,24 @@ json::Object summarize(const json::Array& samples) {
     std::vector<double> times;
     for (const auto& sample_value : samples)
         times.push_back(*sample_value.getAsObject()->getNumber("wall_seconds"));
-    return json::Object{{"median_seconds", median(times)},
+    json::Object result{{"median_seconds", median(times)},
                         {"mad_seconds", mad(times)},
                         {"min_seconds", *std::ranges::min_element(times)},
                         {"max_seconds", *std::ranges::max_element(times)},
                         {"samples", json::Array(samples)}};
+    std::vector<double> link_times, link_counts;
+    for (const auto& sample_value : samples) {
+        const auto& row = *sample_value.getAsObject();
+        if (const auto value = row.getNumber("linker_driver_wall_sum_seconds")) {
+            link_times.push_back(*value);
+            link_counts.push_back(static_cast<double>(*row.getInteger("linker_invocations")));
+        }
+    }
+    if (link_times.size() == samples.size()) {
+        result["linker_driver_wall_sum_median_seconds"] = median(link_times);
+        result["linker_invocations_median"] = median(link_counts);
+    }
+    return result;
 }
 
 std::pair<json::Array, json::Array> paired_samples(const Options& options, const Variant& baseline,
@@ -471,7 +513,7 @@ void incremental_samples(const Options& options, const Variant& baseline, const 
                 ProcessResult noop;
                 unsigned settling_builds = 0;
                 for (;; ++settling_builds) {
-                    clear_records(variant.records);
+                    clear_variant(variant);
                     const auto log = logs / (name + "-settle-" + std::to_string(settling_builds) + ".log");
                     noop = build(options, variant, log, true);
                     const auto pending = compiler_records(variant.records);
@@ -488,7 +530,7 @@ void incremental_samples(const Options& options, const Variant& baseline, const 
                 // previous probe, without a second expensive restoration build per sample.
                 const auto probe = original + "\n// Buildray incremental probe " + std::to_string(pair) + "\n";
                 write_file(file, probe);
-                clear_records(variant.records);
+                clear_variant(variant);
                 const auto result = build(options, variant, logs / (name + "-build.log"));
                 auto records = compiler_records(variant.records);
                 write_json(logs / (name + "-compilers.json"), json::Array(records));
@@ -499,7 +541,11 @@ void incremental_samples(const Options& options, const Variant& baseline, const 
                     if (found == expected.end() || count > found->second)
                         throw std::runtime_error("Incremental build changed the verified compiler commands");
                 }
-                auto summary = compiler_sample(result, records);  // Also rejects no-op probes.
+                const auto links = variant.links ? compiler_records(link_records(variant)) : json::Array{};
+                if (before && options.command == "prune-deps" && records.empty() && links.empty())
+                    throw std::runtime_error("Baseline incremental probe triggered no observed compilation or link");
+                auto summary = compiler_sample(result, records, options.command == "prune-deps");
+                add_links(summary, variant, logs / name, false);
                 json::Array sources;
                 std::set<std::string> original_sources;
                 for (const auto& record : records) {
@@ -555,7 +601,7 @@ void incremental_samples(const Options& options, const Variant& baseline, const 
             // Restore the exact input bytes and rebuild outside all sample timers.
             // PCH validation embeds header metadata, so rewinding mtimes is unsafe.
             for (const auto* variant : {&baseline, &candidate}) {
-                clear_records(variant->records);
+                clear_variant(*variant);
                 build(options, *variant, logs / (label + (variant == &baseline ? "-baseline-restore.log" : "-candidate-restore.log")));
             }
         } catch (...) {
@@ -771,13 +817,16 @@ void patch(const Changes& changes, const Variant& baseline, const Variant& candi
         if (original != read_file(baseline.source / relative))
             throw std::runtime_error("Source changed during analysis: " + relative.string());
         if (filename == "cmake.patch") {
-            if (replacements.size() != 1 || !replacements.front().text.empty())
-                throw std::runtime_error("Expected one CMake token deletion");
-            const auto& item = replacements.front();
-            if (item.offset > original.size() || item.length > original.size() - item.offset)
-                throw std::runtime_error("Invalid CMake token range");
+            auto ordered = replacements;
+            std::ranges::sort(ordered, [](const auto& a, const auto& b) { return a.offset > b.offset; });
             auto edited = original;
-            edited.erase(item.offset, item.length);
+            auto boundary = original.size();
+            for (const auto& item : ordered) {
+                if (item.offset > boundary || item.length > boundary - item.offset)
+                    throw std::runtime_error("Invalid or overlapping CMake dependency edits");
+                edited.replace(item.offset, item.length, item.text);
+                boundary = item.offset;
+            }
             write_file(candidate.source / relative, edited);
         } else {
             write_file(candidate.source / relative, apply_include_replacements(original, replacements));
@@ -828,6 +877,203 @@ void print_summary(const json::Object& report, const fs::path& work) {
     if (fs::exists(work / "incremental.json"))
         std::cout << "Incremental report: " << (work / "incremental.json")
                   << "\nIncremental summary: " << (work / "incremental.md") << '\n';
+}
+
+json::Object unused_plan(const Options& options, const Variant& baseline, const Variant& candidate,
+                         const fs::path& work, const fs::path& executable, const json::Object& before) {
+    const auto started = std::chrono::steady_clock::now();
+    const auto elapsed = [&] { return std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count(); };
+    auto plan = unused_link_candidates(before, candidate.source, options);
+    const auto links_doc = read_json(work / "logs/baseline-linkers.json");
+    const auto& links = *links_doc.getAsArray();
+    json::Object profiles;
+    json::Array screened, screening, accepted;
+    std::map<fs::path, std::string> originals;
+    unsigned configurations = 0, profile_count = 0, cache_hits = 0, final_checks = 0;
+    bool exhausted = false;
+    struct Cleanup {
+        fs::path binaries;
+        ~Cleanup() { std::error_code error; fs::remove_all(binaries, error); }
+    } cleanup{work / "dependency-profiles/binaries"};
+    const auto time_left = [&] {
+        if (interrupted()) throw std::runtime_error("Interrupted during dependency search");
+        if (elapsed() >= options.dependency_time_budget) { exhausted = true; return false; }
+        return true;
+    };
+    const auto persist = [&] {
+        plan["selections"] = json::Array(accepted);
+        plan["screening"] = json::Array(screening);
+        plan["search"] = json::Object{{"profiled_links", profile_count}, {"configurations", configurations},
+            {"cache_hits", cache_hits}, {"final_verifications", final_checks},
+            {"trial_limit", options.max_dependency_trials}, {"time_budget_seconds", options.dependency_time_budget},
+            {"budget_exhausted", exhausted}, {"elapsed_seconds", elapsed()}};
+        write_json(work / "links.json", json::Object(plan));
+    };
+    if (!plan.getArray("candidates")->empty()) {
+        try { cache_link_compilations(baseline.source, baseline.build, profiles); }
+        catch (const std::exception& error) {
+            if (interrupted()) throw;
+            plan["search_blocker"] = std::string(error.what());
+        }
+    }
+    // One extraction replay per relevant consumer, never one per dependency.
+    for (const auto& value : *plan.getArray("candidates")) {
+        auto row = json::Object(*value.getAsObject());
+        if (const auto blocker = plan.getString("search_blocker")) {
+            row["status"] = "unsupported_configuration";
+            row["reason"] = blocker->str();
+            screening.push_back(std::move(row));
+            continue;
+        }
+        const auto output = row.getString("output")->str();
+        const auto archive = row.getString("archive")->str();
+        originals.try_emplace(fs::path(row.getString("file")->str()), read_file(candidate.source / row.getString("file")->str()));
+        if (!profiles.getObject(output)) {
+            if (!time_left()) {
+                row["status"] = "unexamined_budget";
+                screening.push_back(std::move(row));
+                continue;
+            }
+            const auto record = std::ranges::find_if(links, [&](const json::Value& link) {
+                const auto path = fs::path(link.getAsObject()->getString("output")->str());
+                return "<BUILD>/" + path.lexically_relative(baseline.build).generic_string() == output;
+            });
+            try {
+                if (record == links.end()) throw std::runtime_error("Consumer is not part of the active default build");
+                std::cout << "Profiling archive use: " << row.getString("target")->str() << '\n' << std::flush;
+                profiles[output] = profile_link_archives(*record->getAsObject(), baseline.source, baseline.build,
+                    work / "dependency-profiles" / std::to_string(profile_count++));
+            } catch (const std::exception& error) {
+                if (interrupted()) throw;
+                profiles[output] = json::Object{{"error", std::string(error.what())}};
+            }
+        }
+        const auto& profile = *profiles.getObject(output);
+        const auto* archives = profile.getObject("archives");
+        const auto* stats = archives ? archives->getObject(archive) : nullptr;
+        if (stats && stats->getInteger("extracted") == 0) {
+            row["status"] = "candidate";
+            screened.push_back(json::Object(*value.getAsObject()));
+        } else {
+            row["status"] = stats ? "contributes_objects" : "unsupported_or_absent";
+            if (stats) row["extracted"] = *stats->getInteger("extracted");
+            if (const auto error = profile.getString("error")) row["reason"] = error->str();
+        }
+        screening.push_back(std::move(row));
+    }
+    plan["screened_candidates"] = static_cast<std::int64_t>(screened.size());
+    persist();
+    write_json(work / "archive-profile.json", json::Object(profiles));
+    const auto restore = [&] {
+        for (const auto& [file, original] : originals) write_file(candidate.source / file, original);
+    };
+    const auto configure_group = [&](const json::Array& group, const fs::path& folder) {
+        restore();
+        Changes changes;
+        for (auto edit : dependency_replacements(candidate.source, group))
+            changes[fs::path(edit.file)].push_back(std::move(edit));
+        patch(changes, baseline, candidate, work, "cmake.patch");
+        fs::create_directories(folder);
+        fs::copy_file(work / "cmake.patch", folder / "cmake.patch", fs::copy_options::overwrite_existing);
+        fs::remove(candidate.build / "CMakeCache.txt");
+        fs::remove_all(candidate.build / "CMakeFiles");
+        configure(options, candidate, executable, folder / "configure.log");
+        if (measurement_context(options, baseline.build) != measurement_context(options, candidate.build))
+            throw std::runtime_error("Dependency removal changed measurement context or CMake flags");
+        const auto after = cmake_dependencies(candidate.source, candidate.build);
+        write_json(folder / "cmake-after.json", json::Object(after));
+        verify_link_removals(before, after, group);
+        auto proof = verify_unused_link_inputs(baseline.source, baseline.build, candidate.source,
+            candidate.build, links, before, folder / "link-replay", executable, profiles);
+        for (auto& item : *proof.getArray("changed_links")) {
+            auto& row = *item.getAsObject();
+            for (const auto* key : {"evidence_directory", "baseline_evidence_directory"})
+                row[key] = fs::path(row.getString(key)->str()).lexically_relative(work).generic_string();
+        }
+        write_json(folder / "proof.json", json::Object(proof));
+        return proof;
+    };
+    std::map<std::string, std::string> failures;
+    const auto trial = [&](const json::Array& batch, bool compile_only) {
+        json::Array proposed(accepted);
+        for (const auto& value : batch) {
+            auto row = json::Object(*value.getAsObject());
+            row["compile_only"] = compile_only;
+            proposed.push_back(std::move(row));
+        }
+        // The same cumulative edit may recur after bisection. Reuse its rejection.
+        std::vector<std::string> keys;
+        for (const auto& value : proposed) {
+            const auto& row = *value.getAsObject();
+            keys.push_back(row.getString("file")->str() + ":" + std::to_string(*row.getInteger("offset")) +
+                (row.getBoolean("compile_only").value_or(false) ? ":compile" : ":delete"));
+        }
+        std::ranges::sort(keys);
+        std::string key;
+        for (const auto& item : keys) key += std::to_string(item.size()) + ":" + item;
+        auto attempt = json::Object{{"selections", json::Array(proposed)},
+            {"batch_size", static_cast<std::int64_t>(batch.size())}, {"compile_only", compile_only}};
+        if (const auto found = failures.find(key); found != failures.end()) {
+            ++cache_hits;
+            attempt["status"] = "rejected";
+            attempt["cached"] = true;
+            attempt["reason"] = found->second;
+            plan.getArray("attempts")->push_back(std::move(attempt));
+            persist();
+            return false;
+        }
+        if (!time_left() || configurations >= options.max_dependency_trials) { exhausted = true; persist(); return false; }
+        const auto folder = work / "dependency-trials" / std::to_string(configurations++);
+        attempt["evidence_directory"] = folder.lexically_relative(work).generic_string();
+        std::cout << "Dependency group: " << proposed.size() << " links (" << batch.size()
+                  << " new, " << (compile_only ? "compile-only" : "delete") << ")\n" << std::flush;
+        try {
+            configure_group(proposed, folder);
+            accepted = std::move(proposed);
+            attempt["status"] = "accepted";
+            plan.getArray("attempts")->push_back(std::move(attempt));
+            persist();
+            return true;
+        } catch (const std::exception& error) {
+            restore();
+            if (interrupted()) throw;
+            failures[key] = std::string(error.what());
+            attempt["status"] = "rejected";
+            attempt["reason"] = std::string(error.what());
+            plan.getArray("attempts")->push_back(std::move(attempt));
+            persist();
+            return false;
+        }
+    };
+    std::function<void(const json::Array&)> search = [&](const json::Array& batch) {
+        if (batch.empty() || exhausted) return;
+        if (trial(batch, false) || exhausted || trial(batch, true) || exhausted) return;
+        if (batch.size() == 1) return;
+        json::Array left, right;
+        for (std::size_t i = 0; i < batch.size(); ++i)
+            (i < batch.size() / 2 ? left : right).push_back(json::Object(*batch[i].getAsObject()));
+        search(left);
+        search(right);
+    };
+    try {
+        search(screened);
+        restore();
+        if (!accepted.empty()) {
+            ++final_checks;
+            // Revalidate the combined set even when the search ended on a rejection
+            // or reached a budget. This mandatory step is outside the search budget.
+            auto proof = configure_group(accepted, work / "dependency-trials/final");
+            plan["link_evidence"] = std::move(proof);
+            plan["selection"] = json::Object(*accepted.front().getAsObject());
+        } else fs::remove(work / "cmake.patch");
+    } catch (...) {
+        restore();
+        fs::remove(work / "cmake.patch");
+        throw;
+    }
+    plan["search_exhausted"] = !exhausted && !plan.getString("search_blocker");
+    persist();
+    return plan;
 }
 
 int automatic_pch(const Options& options, const fs::path& executable) {
@@ -1019,14 +1265,14 @@ int pipeline(const Options& options, const fs::path& executable) {
         checked({"ninja", "--version"}, source, logs / "ninja-version.log");
         report["cmake_version"] = read_file(logs / "cmake-version.log");
         report["ninja_version"] = read_file(logs / "ninja-version.log");
-        if (options.command == "deps" || options.command == "headers" || options.command == "unity" ||
+        if (options.command == "deps" || link_experiment(options) || options.command == "headers" || options.command == "unity" ||
             (options.command == "pch" && !options.rebuild_files.empty())) {
             checked({options.c_compiler, "--version"}, source, logs / "c-compiler-version.log");
             report["c_compiler_version"] = read_file(logs / "c-compiler-version.log");
             if (report.getString("c_compiler_version")->find("clang") == llvm::StringRef::npos)
                 throw std::runtime_error("This command requires Clang for C as well as C++");
         }
-        if (options.command == "deps" || options.command == "prune-links") {
+        if (options.command == "deps" || link_experiment(options)) {
             checked({"cmake", "-E", "capabilities"}, source, logs / "cmake-capabilities.json");
             const auto capabilities = read_json(logs / "cmake-capabilities.json");
             const auto* object = capabilities.getAsObject();
@@ -1050,8 +1296,9 @@ int pipeline(const Options& options, const fs::path& executable) {
         Variant candidate{work / "candidate-source", work / "candidate-build",
                           work / "candidate-records", false,
                           options.command == "pch" ? options.target : "", options.headers};
-        baseline.cmake_model = candidate.cmake_model = options.command == "prune-links";
-        baseline.active_coverage = candidate.active_coverage = options.command == "headers" || options.command == "unity" || !options.rebuild_files.empty();
+        baseline.cmake_model = candidate.cmake_model = link_experiment(options);
+        baseline.links = candidate.links = link_experiment(options);
+        baseline.active_coverage = candidate.active_coverage = link_experiment(options) || options.command == "headers" || options.command == "unity" || !options.rebuild_files.empty();
         if (options.command == "unity") candidate.unity_target = options.target;
         report["phase"] = "baseline_validation";
         std::cout << "Configuring baseline, warming build, running tests...\n" << std::flush;
@@ -1064,7 +1311,7 @@ int pipeline(const Options& options, const fs::path& executable) {
         }
         // Configure scripts can write generated links or files into their source tree.
         // Prepare both inputs before either configure runs; optimize uses identical bytes.
-        if (options.command == "optimize" || options.command == "pch" || options.command == "prune-links" || options.command == "headers" || options.command == "unity")
+        if (options.command == "optimize" || options.command == "pch" || link_experiment(options) || options.command == "headers" || options.command == "unity")
             snapshot(baseline.source, candidate.source, work);
         if (options.command == "compare") snapshot(source, candidate.source, work);
         SourceFiles originals;
@@ -1086,9 +1333,15 @@ int pipeline(const Options& options, const fs::path& executable) {
         } else {
             report["measurement_context"] = std::move(initial_context);
         }
-        clear_records(baseline.records);
+        clear_variant(baseline);
         build(options, baseline, logs / "baseline-warmup.log");
         verify_coverage(baseline);
+        if (baseline.links) {
+            json::Object link_summary;
+            add_links(link_summary, baseline, logs / "baseline", true);
+            report["baseline_validation_links"] = std::move(link_summary);
+            report["link_measurement_scope"] = "compiler-driver link invocations, including driver startup; sums may overlap under parallelism; maximum individual driver RSS, not aggregate memory; archive analysis and replays excluded from timing";
+        }
         const auto baseline_tests = test(options, baseline, logs, "baseline");
         report["baseline_tests_passed"] = static_cast<std::int64_t>(baseline_tests);
         if (options.command == "deps") {
@@ -1183,40 +1436,67 @@ int pipeline(const Options& options, const fs::path& executable) {
             Changes changes;
             json::Object cmake_before;
             json::Object selected_link;
-            if (options.command == "prune-links") {
+            json::Array selected_links;
+            if (link_experiment(options)) {
                 cmake_before = cmake_dependencies(baseline.source, baseline.build);
                 write_json(work / "cmake-before.json", json::Object(cmake_before));
-                auto plan = link_candidates(cmake_before, candidate.source, options);
+                auto plan = options.command == "prune-deps" ?
+                    unused_plan(options, baseline, candidate, work, executable, cmake_before) :
+                    link_candidates(cmake_before, candidate.source, options);
                 auto& candidates = *plan.getArray("candidates");
-                report["eligible_links"] = static_cast<std::int64_t>(candidates.size());
+                report["eligible_links"] = options.command == "prune-deps" ? *plan.getInteger("candidate_links") : static_cast<std::int64_t>(candidates.size());
                 report["removed_links"] = 0;
                 report["validation_scope"] = "one configured CMake build; one redundant literal target link; original snapshot files only";
-                if (candidates.empty()) {
+                if (options.command == "prune-deps") {
+                    report["validation_scope"] = "one configured Ninja all build; combined private literal static dependency removals; compiler commands preserved; zero extracted members and byte-identical ELF replay; full build and CTest";
+                    report["dependency_trials"] = json::Array(*plan.getArray("attempts"));
+                    report["dependency_search"] = json::Object(*plan.getObject("search"));
+                    report["dependency_screening"] = json::Array(*plan.getArray("screening"));
+                    if (const auto blocker = plan.getString("search_blocker")) report["dependency_search_blocker"] = blocker->str();
+                    selected_links = json::Array(*plan.getArray("selections"));
+                    report["selected_links"] = json::Array(selected_links);
+                }
+                if (options.command == "prune-deps" ? !plan.getObject("selection") : candidates.empty()) {
                     write_json(work / "links.json", std::move(plan));
                     if (!options.dependency.empty())
-                        throw std::runtime_error("Requested dependency has no eligible redundant literal link");
+                        throw std::runtime_error("Requested dependency has no eligible validated link removal; see links.json");
                     report["status"] = "passed";
                     report["phase"] = "complete";
                     report["performance_result"] = "no_changes";
                     report["patch_recommended"] = false;
                     report["validation"] = baseline_tests ? "build_and_tests_passed" : "build_only";
-                    report["measurement"] = "no eligible link; baseline validation only; no performance benchmark";
+                    report["measurement"] = "no confirmed eligible link; baseline validation only; no performance benchmark; inspect links.json for rejected trials and unsupported cases";
+                    if (options.command == "prune-deps" && !options.incremental_only) {
+                        json::Array samples;
+                        for (unsigned i = 0; i < options.runs; ++i) {
+                            std::cout << "Measuring baseline links " << i + 1 << '/' << options.runs << "...\n" << std::flush;
+                            samples.push_back(sample(options, baseline, logs, "baseline-" + std::to_string(i)));
+                        }
+                        report["baseline"] = summarize(samples);
+                        report["measurement"] = "baseline-only clean builds with link-driver measurements; no confirmed removable dependency and no candidate comparison; inspect links.json for rejected or unsupported cases";
+                    }
                     if (interrupted()) throw std::runtime_error("Interrupted");
                     write_json(work / "report.json", json::Object(report));
-                    std::cout << "No eligible redundant CMake link.\n";
+                    std::cout << "No confirmed eligible CMake link removal.\n";
                     print_summary(report, work);
                     return 0;
                 }
-                selected_link = json::Object(*candidates.front().getAsObject());
+                selected_link = json::Object(options.command == "prune-deps" ?
+                    *plan.getObject("selection") : *candidates.front().getAsObject());
                 plan["selection"] = json::Object(selected_link);
                 report["selected_link"] = json::Object(selected_link);
-                const fs::path file = selected_link.getString("file")->str();
-                changes[file] = {{file.string(), static_cast<std::size_t>(*selected_link.getInteger("offset")),
-                                  static_cast<std::size_t>(*selected_link.getInteger("length")), ""}};
-                patch(changes, baseline, candidate, work, "cmake.patch");
+                if (options.command != "prune-deps") {
+                    const fs::path file = selected_link.getString("file")->str();
+                    changes[file] = {{file.string(), static_cast<std::size_t>(*selected_link.getInteger("offset")),
+                                      static_cast<std::size_t>(*selected_link.getInteger("length")), ""}};
+                    patch(changes, baseline, candidate, work, "cmake.patch");
+                }
+                if (const auto* proof = plan.getObject("link_evidence")) report["link_evidence"] = json::Object(*proof);
                 write_json(work / "links.json", std::move(plan));
-                std::cout << "CMake candidate: remove " << selected_link.getString("target")->str()
-                          << " -> " << selected_link.getString("dependency")->str() << '\n' << std::flush;
+                if (options.command == "prune-deps")
+                    std::cout << "CMake candidate: remove " << selected_links.size() << " dependency links\n" << std::flush;
+                else std::cout << "CMake candidate: remove " << selected_link.getString("target")->str()
+                               << " -> " << selected_link.getString("dependency")->str() << '\n' << std::flush;
             }
             if (options.command == "pch" || options.command == "unity") {
                 const auto path = candidate.source / "CMakeLists.txt";
@@ -1248,8 +1528,8 @@ int pipeline(const Options& options, const fs::path& executable) {
                 report["candidate_precompiled_headers"] = true;
                 report["validation_scope"] = "one configured CMake build; private C++ PCH on one target";
             }
-            configure(options, candidate, executable, logs / "candidate-configure.log");
-            if (options.command == "pch" || options.command == "prune-links" || options.command == "unity") {
+            if (options.command != "prune-deps") configure(options, candidate, executable, logs / "candidate-configure.log");
+            if (options.command == "pch" || link_experiment(options) || options.command == "unity") {
                 auto context = measurement_context(options, candidate.build);
                 if (json::Value(json::Object(context)) != *report.get("measurement_context"))
                     throw std::runtime_error("Experiment changed measurement context or CMake flags");
@@ -1257,16 +1537,17 @@ int pipeline(const Options& options, const fs::path& executable) {
                 context["unity_build"] = options.command == "unity";
                 report["candidate_measurement_context"] = std::move(context);
             }
-            if (options.command == "prune-links") {
+            if (link_experiment(options)) {
                 auto after = cmake_dependencies(candidate.source, candidate.build);
                 write_json(work / "cmake-after.json", json::Object(after));
-                verify_link_removal(cmake_before, after, selected_link);
-                report["removed_links"] = 1;
+                if (options.command == "prune-deps") verify_link_removals(cmake_before, after, selected_links);
+                else verify_link_removal(cmake_before, after, selected_link);
+                report["removed_links"] = options.command == "prune-deps" ? static_cast<std::int64_t>(selected_links.size()) : 1;
                 report["cmake_graph_change_verified"] = true;
             }
             if (options.command == "optimize" || options.command == "headers") {
                 // Generated headers must exist before clang-tidy parses sources.
-                clear_records(candidate.records);
+                clear_variant(candidate);
                 build(options, candidate, logs / "candidate-initial-build.log");
                 verify_coverage(candidate);
                 if (options.command == "headers") {
@@ -1288,7 +1569,7 @@ int pipeline(const Options& options, const fs::path& executable) {
                 const auto label = attempt == 0 ? std::string("candidate-validation") :
                                    "candidate-retry-" + std::to_string(attempt);
                 clean(candidate, logs / (label + "-clean.log"));
-                clear_records(candidate.records);
+                clear_variant(candidate);
                 try {
                     build(options, candidate, logs / (label + "-build.log"));
                     if (options.command == "unity")
@@ -1343,6 +1624,11 @@ int pipeline(const Options& options, const fs::path& executable) {
                 }
             }
             verify_coverage(candidate);
+            if (candidate.links) {
+                json::Object link_summary;
+                add_links(link_summary, candidate, logs / "candidate", true);
+                report["candidate_validation_links"] = std::move(link_summary);
+            }
             if (options.command == "unity") {
                 auto plan = verify_unity_plan(baseline.source, baseline.build, candidate.source,
                                                candidate.build, options);

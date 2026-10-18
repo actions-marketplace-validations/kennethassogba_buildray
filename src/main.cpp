@@ -25,6 +25,8 @@ Usage:
                  [--unity-exclude PATH ...] [-- -DNAME=VALUE ...]
   buildray prune-links --source DIR [--target NAME] [--dependency NAME] [options]
                        [-- -DNAME=VALUE ...]
+  buildray prune-deps --source DIR [--target NAME] [--dependency NAME] [options]
+                      [-- -DNAME=VALUE ...]
   buildray compare --baseline-source DIR --source DIR [options] [-- -DNAME=VALUE ...]
   buildray check --baseline REPORT --current REPORT [--output FILE]
                  [--max-regression-percent N]
@@ -33,25 +35,27 @@ Options:
   --source DIR          CMake source tree (default: current directory)
   --work-dir DIR        New output directory (default: SOURCE/.buildray/unique-id)
   --compiler PATH       Clang C++ compiler (default: clang++)
-  --c-compiler PATH     Clang C compiler for deps/headers/unity or incremental pch
+  --c-compiler PATH     Clang C compiler for graphs, headers, unity, link cleanup or incremental pch
   --fail-on-cycles      deps: return 5 if include or target-link cycles exist
   --clang-tidy PATH     clang-tidy with misc-include-cleaner (default: clang-tidy)
   --runs N              Samples per variant and rebuild scenario, 1..100 (default: 3)
-  --rebuild-file PATH   pch/unity: also measure a single-file incremental rebuild; repeatable
+  --rebuild-file PATH   pch/unity/prune-deps: measure a single-file rebuild; repeatable
   --incremental-only    Skip repeated clean timings; requires --rebuild-file (full validation still runs)
   --jobs N              Fixed build parallelism, 1..1024 (default: 2)
   --allow-no-tests      Permit build-only validation when no CTest tests exist
   --baseline-source DIR  Base revision source for paired comparison
   --max-regression-percent N  Regression budget (default: 5)
   --session ID          Optional label shared by comparable measurements
-  --target NAME         PCH/unity target, or optional prune-links target restriction
+  --target NAME         PCH/unity target, or optional link-cleanup target restriction
   --batch-size N        unity: maximum sources per batch, 2..32 (default: 4)
   --unity-exclude PATH  unity: keep source files under this relative path separate; repeatable
   --unity-retries N     unity: retry failed compiler groups with their sources separate, 0..8 (default: 0)
-  --dependency NAME     prune-links: restrict selection to this direct dependency
+  --max-dependency-trials N  prune-deps: maximum search configurations, 1..10000 (default: 64)
+  --dependency-time-budget N  prune-deps: soft search budget in seconds, 1..86400 (default: 300)
+  --dependency NAME     Link cleanup: restrict selection to this direct dependency
   --header HEADER       PCH header: <system> or source-root-relative path; repeatable
   --auto                pch: profile, select one project header/target, validate and measure
-  --exclude PATH        optimize/headers/prune-links: skip edits to a relative path; repeatable
+  --exclude PATH        optimize/headers/link cleanup: skip edits to a relative path; repeatable
   --forward-declarations headers: try replacing eligible project includes with class/struct declarations
   --header-path PATH    headers: restrict edited headers to a relative file/directory; repeatable
   --max-header-edits N  headers: accepted header files per run, 1..1000 (default: 8)
@@ -86,6 +90,18 @@ reconfigures, checks graph changes, builds and tests, then measures three or mor
 clean-build pairs. Outputs: cmake.patch, links.json, before/after CMake graphs.
 No eligible candidate completes without a patch or benchmark. This is configured
 graph redundancy, not proof that a library's symbols are unused.
+prune-deps profiles archive extraction once per eligible consumer, screens used
+archives, then validates cumulative groups of private literal static dependencies.
+Failed groups are bisected; baseline evidence and rejected groups are cached.
+Search budgets stop new work; final combined validation and timings still run.
+Worst-case search is linear and capped, not guaranteed logarithmic.
+It preserves compiler commands, requires zero extracted members from every removed
+archive, and replays the link with identical baseline objects to require identical
+ELF bytes. Compile-only requirements can be retained; CMake <3.27 keeps the
+original link for that patch. Full builds and tests follow; timings include
+link-driver counts, wall/CPU time and individual peak RSS. Shared libraries,
+exported interfaces, variables and response files are not removed. Configure LLD
+explicitly through project CMake flags; Buildray never switches the linker itself.
 headers analyzes observed original project headers with Clang AST and include-cleaner.
 Each candidate must compile standalone in observed C++ contexts and in all observed
 C/C++ users, then pass the complete clean build and CTest. --forward-declarations
@@ -155,7 +171,7 @@ buildray::Options parse(const std::vector<std::string>& args) {
     bool explicit_c_compiler = false;
     if (options.command != "optimize" && options.command != "measure" &&
         options.command != "compare" && options.command != "profile" && options.command != "pch" &&
-        options.command != "deps" && options.command != "prune-links" && options.command != "headers" && options.command != "unity")
+        options.command != "deps" && options.command != "prune-links" && options.command != "prune-deps" && options.command != "headers" && options.command != "unity")
         throw std::runtime_error("Unknown command: " + options.command);
     for (std::size_t i = 1; i < args.size(); ++i) {
         const auto& arg = args[i];
@@ -188,12 +204,14 @@ buildray::Options parse(const std::vector<std::string>& args) {
             arg != "--clang-tidy" && arg != "--runs" && arg != "--jobs" &&
             arg != "--baseline-source" && arg != "--max-regression-percent" && arg != "--session" &&
             arg != "--target" && arg != "--header" && arg != "--c-compiler" && arg != "--exclude" && arg != "--dependency" &&
-            arg != "--header-path" && arg != "--max-header-edits" && arg != "--batch-size" && arg != "--unity-exclude" && arg != "--unity-retries" && arg != "--rebuild-file")
+            arg != "--header-path" && arg != "--max-header-edits" && arg != "--batch-size" && arg != "--unity-exclude" && arg != "--unity-retries" && arg != "--rebuild-file" && arg != "--max-dependency-trials" && arg != "--dependency-time-budget")
             throw std::runtime_error("Unknown option: " + arg);
         if (++i == args.size() || args[i].starts_with("--"))
             throw std::runtime_error("Missing value for " + arg);
         const auto& value = args[i];
         if (value.empty()) throw std::runtime_error("Empty value for " + arg);
+        if ((arg == "--max-dependency-trials" || arg == "--dependency-time-budget") && options.command != "prune-deps")
+            throw std::runtime_error(arg + " requires prune-deps");
         if (arg == "--max-header-edits" && options.command != "headers")
             throw std::runtime_error("--max-header-edits requires headers");
         if ((arg == "--batch-size" || arg == "--unity-exclude" || arg == "--unity-retries") && options.command != "unity")
@@ -214,6 +232,10 @@ buildray::Options parse(const std::vector<std::string>& args) {
             options.runs = number(value, 100);
         else if (arg == "--jobs")
             options.jobs = number(value, 1024);
+        else if (arg == "--max-dependency-trials")
+            options.max_dependency_trials = number(value, 10000);
+        else if (arg == "--dependency-time-budget")
+            options.dependency_time_budget = number(value, 86400);
         else if (arg == "--max-header-edits")
             options.max_header_edits = number(value, 1000);
         else if (arg == "--unity-retries")
@@ -255,24 +277,25 @@ buildray::Options parse(const std::vector<std::string>& args) {
         throw std::runtime_error("--auto requires pch, at least three runs, and no --header; --target is optional");
     if (options.command != "pch" && !options.headers.empty())
         throw std::runtime_error("--header requires pch");
-    if (options.command != "pch" && options.command != "prune-links" && options.command != "unity" && !options.target.empty())
-        throw std::runtime_error("--target requires pch, unity or prune-links");
+    if (options.command != "pch" && options.command != "prune-links" && options.command != "prune-deps" && options.command != "unity" && !options.target.empty())
+        throw std::runtime_error("--target requires pch, unity, prune-links or prune-deps");
     if (options.command == "unity" && options.target.empty())
         throw std::runtime_error("unity requires --target");
-    if (options.command != "prune-links" && !options.dependency.empty())
-        throw std::runtime_error("--dependency requires prune-links");
-    if (options.command == "prune-links" && options.runs < 3)
-        throw std::runtime_error("prune-links requires at least three runs");
+    if (options.command != "prune-links" && options.command != "prune-deps" && !options.dependency.empty())
+        throw std::runtime_error("--dependency requires prune-links or prune-deps");
+    if ((options.command == "prune-links" || options.command == "prune-deps") && options.runs < 3)
+        throw std::runtime_error("Link cleanup requires at least three runs");
     if (options.command != "deps" && options.fail_on_cycles)
         throw std::runtime_error("--fail-on-cycles requires deps");
-    if ((!options.rebuild_files.empty() || options.incremental_only) && options.command != "pch" && options.command != "unity")
+    if ((!options.rebuild_files.empty() || options.incremental_only) && options.command != "pch" && options.command != "unity" && options.command != "prune-deps")
         throw std::runtime_error("Incremental measurements require pch or unity");
     if (options.incremental_only && options.rebuild_files.empty())
         throw std::runtime_error("--incremental-only requires at least one --rebuild-file");
     if (options.command != "deps" && options.command != "headers" && options.command != "unity" &&
+        options.command != "prune-links" && options.command != "prune-deps" &&
         !(options.command == "pch" && !options.rebuild_files.empty()) && explicit_c_compiler)
-        throw std::runtime_error("--c-compiler requires deps, headers, unity or incremental pch");
-    if ((options.command == "headers" || options.command == "unity" || options.command == "pch") && !explicit_c_compiler) {
+        throw std::runtime_error("--c-compiler requires deps, headers, unity, link cleanup or incremental pch");
+    if ((options.command == "headers" || options.command == "unity" || options.command == "pch" || options.command == "prune-links" || options.command == "prune-deps") && !explicit_c_compiler) {
         auto driver = buildray::fs::path(options.compiler);
         auto name = driver.filename().string();
         if (name.starts_with("clang++")) {
@@ -280,8 +303,8 @@ buildray::Options parse(const std::vector<std::string>& args) {
             options.c_compiler = (driver.parent_path() / name).string();
         }
     }
-    if (options.command != "optimize" && options.command != "prune-links" && options.command != "headers" && !options.exclusions.empty())
-        throw std::runtime_error("--exclude requires optimize, headers or prune-links");
+    if (options.command != "optimize" && options.command != "prune-links" && options.command != "prune-deps" && options.command != "headers" && !options.exclusions.empty())
+        throw std::runtime_error("--exclude requires optimize, headers, prune-links or prune-deps");
     if (options.command != "headers" && (options.forward_declarations || !options.header_paths.empty() || options.max_header_edits != 8))
         throw std::runtime_error("Header options require command headers");
     // Tools run from the snapshot; resolve explicit relative executable paths now.
@@ -322,8 +345,9 @@ int main(int argc, char** argv) {
             return 1;
         }
     }
-    if (args.front() == "_launch" || args.front() == "_trace-launch" || args.front() == "_deps-launch") {
+    if (args.front() == "_launch" || args.front() == "_trace-launch" || args.front() == "_deps-launch" || args.front() == "_link-launch") {
         try {
+            if (args.front() == "_link-launch") return buildray::launch_link({args.begin() + 1, args.end()});
             return buildray::launch({args.begin() + 1, args.end()}, args.front() == "_trace-launch",
                                     args.front() == "_deps-launch");
         } catch (const std::exception& error) {
