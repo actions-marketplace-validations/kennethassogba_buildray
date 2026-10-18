@@ -2,11 +2,11 @@
 title: Première mesure
 ---
 
-# Faire sa première mesure
+# Faire sa première mesure {#make-your-first-measurement}
 
 Commencez avec un projet qui compile déjà et dont les tests passent. Buildray ne remplace pas la configuration du projet : ses options CMake doivent permettre de construire et de tester ce qui vous intéresse.
 
-## Installer Buildray
+## Installer Buildray {#install-buildray}
 
 Sur Linux, installez Clang/LLVM 21 et leurs bibliothèques de développement, `clang-tidy-21`, `clang-scan-deps`, CMake 3.30 ou plus, Ninja et GNU diff. `libclang-21-dev` est nécessaire en plus des paquets LLVM. Les commandes `deps` et `prune-links` demandent CMake 4.2 ou plus et Ninja 1.13 ou plus.
 
@@ -26,7 +26,7 @@ cmake --install build --prefix "$HOME/.local"
 
 Ajoutez `$HOME/.local/bin` à votre `PATH` si nécessaire. L’installation place `buildray` et `buildray-header-tool` ensemble ; gardez les deux pour l’analyse des headers. Pour éviter l’installation locale, vous pouvez [utiliser l’Action](./ci.md).
 
-## Mesurer votre projet
+## Mesurer votre projet {#measure-your-project}
 
 ```bash
 buildray measure --source /chemin/du/projet \
@@ -39,7 +39,7 @@ Le répertoire de travail doit être nouveau. Remplacez `BUILD_TESTING` par l’
 
 `--jobs 2` limite à deux le nombre de tâches de build simultanées. Gardez la même valeur pour comparer deux versions. Fermez les autres tâches lourdes pendant la mesure.
 
-## Ouvrir le rapport
+## Ouvrir le rapport {#open-the-report}
 
 Dans le répertoire de travail, `report.json` contient les durées individuelles, la médiane et le contexte de mesure. `logs/` contient les sorties des outils. Les builds sont mesurés séparément des tests et de la configuration.
 

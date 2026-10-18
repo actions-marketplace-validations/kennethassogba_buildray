@@ -4,6 +4,8 @@ The public guide is published at https://kennethassogba.github.io/buildray/.
 English pages live in `website/`; French pages live in `website/fr/`.
 Keep explanations short and define a term before relying on it. Keep both
 languages consistent when changing commands, limits or results.
+French headings use the English heading's anchor explicitly, so changing
+language keeps the reader in the same section. The link check verifies this.
 
 ```bash
 npm ci

@@ -44,6 +44,13 @@ for (const [name, lang] of [
   if (!text?.includes(`<html lang="${lang}"`)) errors.add(`Missing page or wrong language: ${name}`)
   if (!text?.includes('VPDoc')) errors.add(`Missing document layout: ${name}`)
 }
+// VitePress retains the fragment when switching language. Both translations
+// must expose the same heading IDs so the reader stays in the same section.
+for (const name of ['index', 'start', 'concepts', 'optimize', 'measure', 'ci', 'results', 'next']) {
+  const ids = locale => [...(pages.get(resolve(root, locale + name + '.html')) ?? '').matchAll(/<h[1-6][^>]*\bid="([^"]+)"/g)]
+    .map(m => m[1]).filter(id => id !== 'doc-outline-aria-label')
+  if (JSON.stringify(ids('')) !== JSON.stringify(ids('fr/'))) errors.add(`Translation anchors differ: ${name}`)
+}
 if (errors.size) {
   console.error([...errors].join('\n'))
   process.exitCode = 1

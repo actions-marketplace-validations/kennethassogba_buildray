@@ -2,11 +2,11 @@
 title: Choisir une optimisation
 ---
 
-# Choisir quoi essayer
+# Choisir quoi essayer {#choose-what-to-try}
 
 Cherchez d’abord où le build passe son temps. Faites une expérience à la fois pour comprendre ce qui a produit le résultat.
 
-## Repérer les headers coûteux
+## Repérer les headers coûteux {#find-expensive-headers}
 
 ```bash
 buildray profile --source /chemin/du/projet \
@@ -15,7 +15,7 @@ buildray profile --source /chemin/du/projet \
 
 `headers.md` classe les headers par temps d’analyse, à partir des traces Clang. Les temps de headers imbriqués se recouvrent : ne les additionnez pas pour prédire un gain. Les traces servent au diagnostic, pas aux mesures avant/après.
 
-## Nettoyer les includes
+## Nettoyer les includes {#clean-up-includes}
 
 ```bash
 buildray optimize --source /chemin/du/projet --runs 3 --jobs 2
@@ -28,7 +28,7 @@ buildray headers --source /chemin/du/projet \
 
 Les chemins exclus restent compilés et testés, mais leur contenu n’est pas modifié. Les fichiers générés ou téléchargés pendant la configuration sont également exclus des modifications.
 
-## Essayer un PCH ou Unity
+## Essayer un PCH ou Unity {#try-pch-or-unity}
 
 ```bash
 buildray pch --auto --source /chemin/du/projet \
@@ -43,7 +43,7 @@ buildray unity --source /chemin/du/projet --target ma_bibliotheque \
 
 Unity produit une option CMake désactivée par défaut. Après application du patch, `-DBUILDRAY_UNITY=ON` active les groupes testés. Ajoutez `--rebuild-file` aux deux modes pour mesurer les fichiers que vous modifiez souvent.
 
-## Examiner les dépendances
+## Examiner les dépendances {#examine-dependencies}
 
 ```bash
 buildray deps --source /chemin/du/projet
@@ -54,7 +54,7 @@ buildray prune-links --source /chemin/du/projet --runs 3 --jobs 2
 
 `prune-links` teste la suppression d’une seule déclaration CMake redondante dont les exigences restent accessibles par un autre chemin. Il ne recherche pas encore toutes les bibliothèques réellement inutiles. Si la commande finale de lien reste identique, aucun gain de temps n’est attendu de cette seule suppression.
 
-## Garder uniquement un patch vérifié
+## Garder uniquement un patch vérifié {#keep-a-validated-patch}
 
 Lisez `patch_validated`, `patch_recommended` et `performance_result` dans `report.json`. Un fichier `.patch` peut exister même après un échec ; sa présence ne vaut pas validation.
 

@@ -2,11 +2,11 @@
 title: Lire les mesures
 ---
 
-# Savoir si le gain est mesuré
+# Savoir si le gain est mesuré {#tell-whether-a-gain-is-measured}
 
 Une compilation peut varier d’un passage à l’autre. Buildray répète les builds et alterne l’ordre entre la version de référence et la version modifiée, sur la même machine.
 
-## Ce que le temps contient
+## Ce que le temps contient {#what-the-timer-includes}
 
 Le temps principal va du lancement du build à sa fin, lien compris. La configuration CMake, l’analyse du code, le nettoyage et les tests sont hors du chronomètre. Les caches de compilation sont désactivés ; le cache de fichiers du système reste chaud.
 
@@ -14,7 +14,7 @@ La **médiane** est la durée au milieu des durées triées. Elle représente mi
 
 Pour recommander une optimisation, Buildray demande au moins trois paires de builds et un gain supérieur au plus grand de ces deux seuils : 2 % de la médiane de référence, ou trois fois la plus grande MAD. C’est une règle pratique, pas une preuve de significativité statistique.
 
-## Comprendre le résultat
+## Comprendre le résultat {#read-the-verdict}
 
 | Résultat | Ce que vous pouvez en déduire |
 | --- | --- |
@@ -27,7 +27,7 @@ Pour recommander une optimisation, Buildray demande au moins trois paires de bui
 
 `status: passed` signifie que l’exécution s’est terminée correctement. `patch_validated` indique que le candidat a passé les validations prévues. `patch_recommended` ajoute l’exigence d’un gain mesuré. Ces informations répondent à des questions différentes.
 
-## Mesurer le travail quotidien
+## Mesurer le travail quotidien {#measure-everyday-edits}
 
 ```bash
 buildray pch --source /chemin/du/projet \
@@ -42,7 +42,7 @@ Le commentaire révèle quels fichiers une modification oblige à reconstruire. 
 
 `--incremental-only` évite de répéter les builds complets pour les chronométrer ; les builds et tests de validation restent nécessaires. Il ne produit pas de recommandation automatique sur le gain d’un build complet. Un ralentissement incrémental mesuré bloque cette recommandation lorsque les deux types de mesures sont activés.
 
-## Comparer deux révisions
+## Comparer deux révisions {#compare-revisions}
 
 ```bash
 buildray compare --baseline-source /chemin/version-de-reference \

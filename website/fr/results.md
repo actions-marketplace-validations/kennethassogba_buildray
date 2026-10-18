@@ -2,11 +2,11 @@
 title: Résultats et limites
 ---
 
-# Ce que montrent les essais
+# Ce que montrent les essais {#what-the-experiments-show}
 
 Nous testons Buildray sur de vrais projets, avec des révisions et des configurations fixes. Les résultats ci-dessous sont des exemples de rebuilds après ajout d’un commentaire. Ils ne prédisent pas les performances sur votre machine.
 
-## Quelques mesures avant/après
+## Quelques mesures avant/après {#selected-before-after-measurements}
 
 Chaque ligne contient trois paires alternées, avec build complet et tests de validation. Comparez les deux valeurs d’une même ligne : des lignes différentes peuvent venir de runners différents.
 
@@ -22,13 +22,13 @@ Unity peut accélérer la reconstruction après modification d’un header tout 
 
 Les [18 scénarios, configurations et rapports bruts](https://github.com/kennethassogba/buildray/blob/main/docs/incremental-validation.md) expliquent chaque mesure. Les références testées sont XGrammar `7e269d5`, SentencePiece v0.2.2 `e0cce7d` et MuJoCo `651bae1`. SentencePiece utilise un PCH de `src/common.h` sur `sentencepiece-static` ; ce n’est pas l’ancien essai sur `spm_test`.
 
-## Pourquoi le lien devient intéressant
+## Pourquoi le lien devient intéressant {#why-linking-deserves-a-closer-look}
 
 Le log d’un rebuild MuJoCo contient 80 étapes de lien. Dans cette mesure, le fichier source prend environ cinq secondes à compiler, mais le build par défaut dure environ 228 secondes. Cela justifie de chercher ce qui déclenche ces liens et lesquels sont nécessaires. Cela ne prouve pas qu’une dépendance particulière est inutile.
 
 Ces mesures utilisent un réglage commun aux deux versions pour contourner des dépendances temporaires produites par gold avec LTO. Sans lui, le build se relançait même sans modification ; Buildray refusait alors de chronométrer le rebuild. Le réglage et le diagnostic sont conservés dans les preuves.
 
-## Les limites à garder en tête
+## Les limites à garder en tête {#limits-of-the-evidence}
 
 Les tests couvrent la configuration fournie. Ils ne remplacent pas la validation des autres plateformes et des consommateurs d’une bibliothèque. Trois paires et un seuil de variation restent une méthode de tri, pas une étude statistique.
 
