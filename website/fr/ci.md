@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: kennethassogba/buildray@6c3490dd8dc239bf0b70d5ea746e4c525acb7f6a
+      - uses: kennethassogba/buildray@e908f6d4df86916df0055f889a86e5ec8717f634
         with:
           source: .
           cmake-args: '["-DBUILD_TESTING=ON"]'
@@ -51,6 +51,8 @@ jobs: '2'
 ```
 
 Les expériences d’optimisation comparent le projet avec sa propre copie modifiée. Elles ignorent `baseline-ref`, qui sert à la comparaison entre révisions.
+
+Si le projet ignore volontairement certains tests à l’exécution, `allow-baseline-skips: 'true'` permet de conserver ces mêmes exceptions pendant la validation. Elles sont comptées séparément des tests réussis. Par défaut, tout test ignoré bloque la validation.
 
 La comparaison automatique exporte la base avec `git archive`. Elle ne prépare donc pas les sous-modules Git ni les contenus Git LFS. Si votre projet en dépend, préparez les deux sources et utilisez la CLI `compare` dans votre workflow.
 

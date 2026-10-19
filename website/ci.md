@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: kennethassogba/buildray@6c3490dd8dc239bf0b70d5ea746e4c525acb7f6a
+      - uses: kennethassogba/buildray@e908f6d4df86916df0055f889a86e5ec8717f634
         with:
           source: .
           cmake-args: '["-DBUILD_TESTING=ON"]'
@@ -51,6 +51,8 @@ jobs: '2'
 ```
 
 Optimization experiments compare the project with its patched copy. They ignore `baseline-ref`, which is used for revision comparisons.
+
+For a project with intentional runtime skips, `allow-baseline-skips: 'true'` permits the same skipped tests throughout validation. They are reported separately from passing tests. The default refuses all skips.
 
 The automatic revision comparison exports the base with `git archive`. It does not materialize Git submodules or LFS contents. If your project needs them, prepare both source trees and use the native `compare` command in your workflow.
 
