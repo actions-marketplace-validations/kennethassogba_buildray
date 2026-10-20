@@ -43,11 +43,11 @@ Ces mesures utilisent un réglage commun aux deux versions pour contourner des d
 
 ## Le nettoyage des dépendances aujourd’hui {#dependency-cleanup-so-far}
 
-La recherche par groupes retire 40 liens inutiles en un essai sur un projet de test, puis effectue une vérification finale. Sur les vrais projets, les résultats restent limités : retirer le lien inutilisé vers `gmock` dans XGrammar ne donne aucun gain mesurable, SentencePiece n’a aucun candidat pris en charge et aucun retrait n’est confirmé sur MuJoCo. Cela ne valide pas encore les performances à grande échelle. [Résultats et limites](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md).
+La recherche par groupes retire 40 liens inutiles en un essai sur un projet de test, y compris quand les bibliothèques viennent d’une variable CMake. Une vérification finale contrôle le patch combiné. [Résultats et limites](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md).
 
-Sur Google Highway, Buildray examine 17 liens dans 15 programmes et valide un retrait. Le build complet passe 2 784 tests ; 23 restent volontairement ignorés dans les deux versions. Le rebuild mesuré de `vqsort.cc` reste non concluant : 4,415 → 4,448 s. Ce fichier appartient à une autre bibliothèque que celle retirée ; la plupart des dépendances des tests utilisent encore des variables CMake non prises en charge.
+Sur XGrammar, retirer le lien inutilisé vers `gmock` évite environ 32 secondes de lien LTO quand `gmock-all.cc` change : le rebuild passe de 34,768 à 2,589 s, avec les 83 tests réussis. L’edit du parseur reste non concluant à 35,769 → 35,995 s. Le gain concerne les changements dans GoogleMock ; il ne démontre pas un build complet plus rapide. SentencePiece reste sans candidat pris en charge, car ses programmes utilisent des alias. MuJoCo passe 3 519 tests, mais les fichiers de réponse bloquent la recherche.
 
-Un essai séparé sur le cœur et les exemples, sans tests, modifie la bibliothèque concernée. Il évite une étape de lien (13 → 12), mais les temps restent non concluants : 4,433 → 4,027 s. Ces mesures ne démontrent pas de gain global.
+Sur Highway, les variables font passer la couverture de 17 à 572 liens éligibles. Buildray valide 35 retraits sur 35 programmes, avec 2 784 tests réussis et les mêmes 23 tests ignorés à chaque étape. Modifier `vqsort.cc` prend désormais 4,537 → 3,581 s, soit un gain de 21,07 %, avec 32 liens de moins dans chaque paire. Modifier `targets.cc` reste non concluant à 4,637 → 4,626 s. La recherche atteint sa limite de 64 essais : le patch validé reste un sous-ensemble. Les builds complets ne sont pas à nouveau chronométrés. [Run et preuves](https://github.com/kennethassogba/buildray/actions/runs/39323921286).
 
 ## Les limites à garder en tête {#limits-of-the-evidence}
 
