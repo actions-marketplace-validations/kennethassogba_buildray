@@ -14,7 +14,7 @@ on:
       project:
         description: Project to evaluate.
         type: choice
-        options: [all, xgrammar, sentencepiece, mujoco, snappy, llama]
+        options: [all, xgrammar, sentencepiece, mujoco, snappy]
         default: all
       incremental_only:
         description: Keep full build and test validation; measure only incremental rebuild pairs.
@@ -57,12 +57,6 @@ jobs:
             jobs: '4'
             rebuild_files: '["snappy.cc", "snappy-test.cc"]'
             cmake_args: '["-DBUILD_SHARED_LIBS=OFF", "-DSNAPPY_BUILD_TESTS=ON", "-DSNAPPY_BUILD_BENCHMARKS=ON"]'
-          - project: llama
-            repository: ggml-org/llama.cpp
-            revision: 36cbf415f1c72c199e956c00fed0418f22ca53f2
-            jobs: '4'
-            rebuild_files: '["common/common.cpp", "src/llama-vocab.cpp"]'
-            cmake_args: '["-DBUILD_SHARED_LIBS=OFF", "-DLLAMA_BUILD_TESTS=ON", "-DLLAMA_BUILD_EXAMPLES=OFF", "-DLLAMA_BUILD_TOOLS=ON", "-DLLAMA_BUILD_SERVER=ON", "-DLLAMA_BUILD_APP=OFF", "-DCMAKE_PROJECT_llama.cpp_INCLUDE=buildray-benchmark.cmake", "-DGGML_NATIVE=OFF", "-DGGML_CUDA=OFF", "-DGGML_BACKEND_DL=OFF"]'
     steps:
       - uses: actions/checkout@v6
         if: inputs.project == 'all' || inputs.project == matrix.project
@@ -90,13 +84,6 @@ jobs:
         if: (inputs.project == 'all' || inputs.project == matrix.project) && matrix.project == 'snappy'
         working-directory: fixtures/snappy
         run: git submodule update --init --depth 1 third_party/googletest third_party/benchmark
-      - name: Prepare llama.cpp Python test dependencies
-        if: (inputs.project == 'all' || inputs.project == matrix.project) && matrix.project == 'llama'
-        run: |
-          python3 -m pip install jinja2 jsonschema requests
-          # llama sets UNITY_BUILD on the target, overriding CMAKE_UNITY_BUILD.
-          # Keep the same explicit non-Unity profile in both measured variants.
-          printf '%s\n' 'cmake_language(DEFER CALL set_property TARGET llama PROPERTY UNITY_BUILD OFF)' > fixtures/llama/buildray-benchmark.cmake
       - name: Select a common LLD toolchain for both variants
         if: inputs.project == 'all' || inputs.project == matrix.project
         env:

@@ -38,6 +38,13 @@ settings, samples and validation. [Workflow artifacts](https://github.com/kennet
 retain the complete reports and logs. No new patch is proposed for Snappy or
 SentencePiece.
 
+llama.cpp `36cbf415` was also tried. Its default target forces Unity; a common
+non-Unity profile then fails to compile `src/models/clef.cpp` because `<algorithm>`
+is missing. No cleanup or timing result was accepted. It is excluded from the
+corpus: its [contribution policy](https://github.com/ggml-org/llama.cpp/blob/master/AGENTS.md)
+prohibits automated PR submissions. The diagnostic is retained in
+[the failed run](https://github.com/kennethassogba/buildray/actions/runs/39809070095).
+
 ## Follow-up with CMake variables
 
 The [19 October corpus run](https://github.com/kennethassogba/buildray/actions/runs/39323923513)
