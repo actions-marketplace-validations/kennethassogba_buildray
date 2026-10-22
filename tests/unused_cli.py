@@ -76,6 +76,33 @@ add_test(NAME works COMMAND sample)
     run('cmake', '--build', root / 'applied', '--parallel', 2)
     run('ctest', '--test-dir', root / 'applied', '--output-on-failure')
 
+    # CMake may drop a redundant copy of a used archive as a side effect of
+    # removing an unused dependency. The remaining copy must still link it.
+    saved_main = (source / 'main.cpp').read_text()
+    (source / 'main.cpp').write_text('int used(); int main() { return used(); }\n')
+    (source / 'used.cpp').write_text('int used() { return 0; }\n')
+    cmake.write_text('''cmake_minimum_required(VERSION 3.18)
+project(duplicate_archive LANGUAGES CXX)
+add_library(used STATIC used.cpp)
+add_library(dead STATIC EXCLUDE_FROM_ALL dead.cpp)
+target_link_libraries(dead INTERFACE used)
+add_executable(sample main.cpp)
+target_link_libraries(sample PRIVATE used dead)
+enable_testing()
+add_test(NAME works COMMAND sample)
+''')
+    _, duplicate = invoke('retained-used-copy', '--target', 'sample', '--dependency', 'dead')
+    assert duplicate['patch_validated']
+    changed = duplicate['link_evidence']['changed_links']
+    assert len(changed) == 1 and changed[0]['identical_elf']
+    removed = changed[0]['removed_archives']
+    assert any(a['archive'].endswith('libused.a') and a['retained_copy']
+               and a['extracted'] > 0 for a in removed), removed
+    assert any(a['archive'].endswith('libdead.a') and not a['retained_copy']
+               and a['extracted'] == 0 for a in removed), removed
+    (source / 'main.cpp').write_text(saved_main)
+    (source / 'used.cpp').unlink()
+
     def rejected(label, addition='', replacement=None, reason=None):
         cmake.write_text((replacement or original) + addition)
         w, result = invoke(label)

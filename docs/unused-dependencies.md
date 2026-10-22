@@ -80,8 +80,9 @@ Each trial must pass checks 1–4. The final combined patch must pass all five:
 1. The compiler command inventory stays identical, after normalizing the two
    isolated directory paths. CMake relationships change only as expected.
 2. Link arguments only lose explicit `.a` inputs. Other arguments keep their
-   order and values. LLD must report zero extracted objects from every archive
-   removed from every affected link.
+   order and values. LLD must report zero extracted objects from an archive
+   removed entirely. A redundant copy may disappear if the same archive remains
+   linked; the binary must still match byte for byte.
 3. Replaying both links with the same baseline object files produces
    byte-identical ELF binaries. These analysis replays are outside timings.
 4. Active compilations can disappear only for the removed archive targets.

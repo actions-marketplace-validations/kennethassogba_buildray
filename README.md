@@ -12,6 +12,7 @@ Buildray is written in **C++26**. It supports Linux, Clang, CMake and Ninja.
 
 Testing Buildray on other projects has led to these merged fixes:
 
+- [Highway #3502](https://github.com/google/highway/pull/3502): removed unused static test-library dependencies to avoid unnecessary relinks.
 - [SentencePiece #1350](https://github.com/google/sentencepiece/pull/1350): removed two unused includes. No build-time gain claimed.
 - [Highway #3497](https://github.com/google/highway/pull/3497): fixed a missing `main` that prevented `iguana_test` from linking in standalone mode.
 

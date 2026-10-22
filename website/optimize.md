@@ -58,6 +58,8 @@ buildray prune-links --source /path/to/project --runs 3 --jobs 2
 
 `prune-deps` checks archive use once per program, then tries removing eligible private static libraries together. It splits groups that fail and keeps accepted removals in every later trial. Compiler commands must stay unchanged, and link replay must produce identical binaries from the same objects. The final combined patch must also pass the full build and tests.
 
+CMake may also remove a redundant copy of a library that stays linked. Buildray accepts this only when the resulting binary is identical; it keeps the library's compilation coverage.
+
 Target names and library lists can use CMake variables, including in loops and functions. The patch changes only the target and list values that were tested. Other values keep the original command, and shared variable definitions stay unchanged.
 
 This mode needs ELF LLD, selected explicitly for both variants. If a library only supplies headers or compilation settings, the patch can keep those while removing the link. Add `--rebuild-file` to check whether an edit triggers fewer links. The [command reference](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies.md) gives the setup and limits.

@@ -41,8 +41,20 @@ jobs:
             repository: google-deepmind/mujoco
             revision: 651bae11c3c38efe483f033b4b7e869e7ce3f4ec
             jobs: '4'
-            rebuild_files: '["src/user/user_model.cc"]'
-            cmake_args: '["-DMUJOCO_BUILD_EXAMPLES=OFF", "-DMUJOCO_BUILD_SIMULATE=OFF", "-DMUJOCO_BUILD_TESTS=ON", "-DMUJOCO_TEST_PYTHON_UTIL=OFF"]'
+            rebuild_files: '["test/compare_model.cc", "test/fixture.cc"]'
+            cmake_args: '["-DMUJOCO_BUILD_EXAMPLES=OFF", "-DMUJOCO_BUILD_SIMULATE=OFF", "-DMUJOCO_BUILD_TESTS=ON", "-DMUJOCO_TEST_PYTHON_UTIL=OFF", "-DCMAKE_CXX_SCAN_FOR_MODULES=OFF", "-DCMAKE_LINK_DEPENDS_USE_LINKER=OFF"]'
+          - project: snappy
+            repository: google/snappy
+            revision: 9c28114a38866f6deeaa826db918293bc28ae410
+            jobs: '4'
+            rebuild_files: '["snappy.cc", "snappy-test.cc"]'
+            cmake_args: '["-DBUILD_SHARED_LIBS=OFF", "-DSNAPPY_BUILD_TESTS=ON", "-DSNAPPY_BUILD_BENCHMARKS=ON"]'
+          - project: llama
+            repository: ggml-org/llama.cpp
+            revision: 36cbf415f1c72c199e956c00fed0418f22ca53f2
+            jobs: '4'
+            rebuild_files: '["common/common.cpp", "src/llama-vocab.cpp"]'
+            cmake_args: '["-DBUILD_SHARED_LIBS=OFF", "-DLLAMA_BUILD_TESTS=ON", "-DLLAMA_BUILD_EXAMPLES=OFF", "-DLLAMA_BUILD_TOOLS=OFF", "-DLLAMA_BUILD_SERVER=OFF", "-DLLAMA_BUILD_APP=OFF", "-DGGML_NATIVE=OFF", "-DGGML_CUDA=OFF", "-DGGML_BACKEND_DL=OFF"]'
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v7
@@ -63,6 +75,13 @@ jobs:
       - name: Prepare MuJoCo locale
         if: matrix.project == 'mujoco'
         run: sudo locale-gen de_DE.UTF-8
+      - name: Prepare Snappy tests and benchmarks
+        if: matrix.project == 'snappy'
+        working-directory: fixtures/snappy
+        run: git submodule update --init --depth 1 third_party/googletest third_party/benchmark
+      - name: Prepare llama.cpp Python test dependencies
+        if: matrix.project == 'llama'
+        run: python3 -m pip install jinja2 jsonschema requests
       - name: Select a common LLD toolchain for both variants
         env:
           PROJECT_ARGS: ${{ matrix.cmake_args }}
@@ -84,6 +103,9 @@ jobs:
           jobs: ${{ matrix.jobs }}
           rebuild-files: ${{ matrix.rebuild_files }}
           incremental-only: ${{ inputs.incremental_only }}
+          allow-baseline-skips: 'true'
+          max-dependency-trials: '128'
+          dependency-time-budget: '1800'
           exclude-paths: '["3rdparty", "third_party"]'
           cmake-args: ${{ env.UNUSED_CMAKE_ARGS }}
           artifact-name: unused-${{ matrix.project }}
