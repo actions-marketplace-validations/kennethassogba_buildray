@@ -7,6 +7,8 @@ Buildray tests each patch in a copy of your project and leaves your source tree 
 
 ## In GitHub Actions
 
+[GitHub Marketplace](https://github.com/marketplace/actions/buildray-build-time)
+
 Add `.github/workflows/build-time.yml`:
 
 ```yaml
