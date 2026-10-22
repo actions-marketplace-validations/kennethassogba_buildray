@@ -49,6 +49,8 @@ On XGrammar, removing the unused `gmock` link avoids a roughly 32-second LTO lin
 
 On Highway, variable support expands coverage from 17 to 572 eligible links. Buildray validates 35 removals across 35 programs, with 2,784 passing tests and the same 23 skips throughout. Editing `vqsort.cc` now takes 4.537 → 3.581 s, a 21.07% gain, with 32 fewer links in every pair. Editing `targets.cc` stays inconclusive at 4.637 → 4.626 s. The search reaches its 64-trial limit, so this is a validated subset. There are no new clean-build timings. [Run and artifacts](https://github.com/kennethassogba/buildray/actions/runs/39323921286).
 
+The 22 October rerun confirms the existing XGrammar patch: **34.639 → 2.367 s** after a GoogleMock edit, with all 83 tests passing. The parser edit stays inconclusive. Snappy passes its baseline, but all six supported links contribute archive objects; SentencePiece remains blocked by aliases. These checks produced no additional upstream PR. [Reports and settings](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md#22-october-rerun).
+
 ## Limits of the evidence
 
 Tests cover the supplied configuration. They do not replace validation on other platforms or of a library's consumers. Three pairs and a variation threshold are a screening method, not a statistical study.

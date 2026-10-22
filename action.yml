@@ -5,10 +5,6 @@ branding:
   icon: clock
   color: blue
 inputs:
-  linker:
-    description: 'LLD executable for dependency cleanup; clean-deps detects it automatically.'
-    required: false
-    default: ''
   source:
     description: CMake source directory relative to the checkout.
     default: '.'
@@ -42,6 +38,10 @@ inputs:
   c-compiler:
     description: Clang C compiler for deps, headers and unity; must match the C++ compiler major version for headers.
     default: clang-21
+  linker:
+    description: 'LLD executable for dependency cleanup; clean-deps detects it automatically.'
+    required: false
+    default: ''
   fail-on-cycles:
     description: For deps, fail with exit 5 if observed include or target-link cycles exist.
     default: 'false'

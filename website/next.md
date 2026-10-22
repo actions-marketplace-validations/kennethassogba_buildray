@@ -10,9 +10,9 @@ On XGrammar, removing an unused dependency avoids a roughly 32-second link after
 
 ## Next steps
 
-1. Reduce repeated rejections on Highway. The search validates 35 removals but reaches its 64-trial limit, mostly on repeated `libhwy.a` entries in link commands. Keep the same binary checks while distinguishing redundant copies from a library removed entirely.
-2. Support compiler response files: lists of arguments stored in `.rsp` files. They block the search on MuJoCo, where 236 links are now eligible.
-3. Resolve CMake aliases, which still exclude SentencePiece's executable links from the search.
+1. Resolve CMake aliases, which still exclude SentencePiece's executable links from the search.
+2. Check the remaining Highway dependencies after the accepted cleanup. Redundant archive copies are now supported, with the same identical-binary requirement.
+3. Handle compiler response files safely, so projects do not need a module-scanning workaround for this search.
 
 The [dependency results](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md) separate the test project from the real-project measurements. No eligible removal means the supported search found none, not that every dependency is necessary.
 

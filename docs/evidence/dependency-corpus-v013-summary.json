@@ -1,0 +1,688 @@
+{
+  "engine_revision": "65a5ded169687b618a9cb04cecadf4bde1040083",
+  "run": "https://github.com/kennethassogba/buildray/actions/runs/39804768971",
+  "projects": {
+    "snappy": {
+      "status": "passed",
+      "removed_links": 0,
+      "patch_validated": false,
+      "baseline_tests_passed": 1,
+      "candidate_tests_passed": null,
+      "performance_result": "no_changes",
+      "revision": "9c28114a38866f6deeaa826db918293bc28ae410",
+      "runs": 3,
+      "jobs": 4,
+      "cmake_args": [
+        "-DBUILD_SHARED_LIBS=OFF",
+        "-DSNAPPY_BUILD_TESTS=ON",
+        "-DSNAPPY_BUILD_BENCHMARKS=ON",
+        "-DCMAKE_EXE_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld",
+        "-DCMAKE_SHARED_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld",
+        "-DCMAKE_MODULE_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld"
+      ],
+      "compiler_version": "Ubuntu clang version 21.1.8 (++20251221032922+2078da43e25a-1~exp1~20251221153059.70)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-21/bin\n",
+      "cmake_version": "cmake version 4.2.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+      "ninja_version": "1.13.0.git.kitware.jobserver-pipe-1\n",
+      "dependency_search": {
+        "budget_exhausted": false,
+        "cache_hits": 0,
+        "configurations": 0,
+        "elapsed_seconds": 0.225764104,
+        "final_verifications": 0,
+        "profiled_links": 3,
+        "time_budget_seconds": 1800,
+        "trial_limit": 128
+      },
+      "link_evidence": null,
+      "machine": {
+        "architecture": "x86_64",
+        "cpu_model": "AMD EPYC 9V74 80-Core Processor",
+        "cpu_affinity_count": 4,
+        "cpu_quota": "unavailable",
+        "environment_flags": {
+          "CFLAGS": "",
+          "CXXFLAGS": "",
+          "LDFLAGS": ""
+        },
+        "linker_version": null
+      }
+    },
+    "sentencepiece": {
+      "status": "passed",
+      "removed_links": 0,
+      "patch_validated": false,
+      "baseline_tests_passed": 1,
+      "candidate_tests_passed": null,
+      "performance_result": "no_changes",
+      "revision": "e0cce7d37b065b5140349dbe12c6bcf6192fdd78",
+      "runs": 3,
+      "jobs": 2,
+      "cmake_args": [
+        "-DSPM_BUILD_TEST=ON",
+        "-DSPM_ENABLE_SHARED=OFF",
+        "-DSPM_ENABLE_TCMALLOC=OFF",
+        "-DCMAKE_EXE_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld",
+        "-DCMAKE_SHARED_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld",
+        "-DCMAKE_MODULE_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld"
+      ],
+      "compiler_version": "Ubuntu clang version 21.1.8 (++20251221032922+2078da43e25a-1~exp1~20251221153059.70)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-21/bin\n",
+      "cmake_version": "cmake version 4.2.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+      "ninja_version": "1.13.0.git.kitware.jobserver-pipe-1\n",
+      "dependency_search": {
+        "budget_exhausted": false,
+        "cache_hits": 0,
+        "configurations": 0,
+        "elapsed_seconds": 0.084045303,
+        "final_verifications": 0,
+        "profiled_links": 0,
+        "time_budget_seconds": 1800,
+        "trial_limit": 128
+      },
+      "link_evidence": null,
+      "machine": {
+        "architecture": "x86_64",
+        "cpu_model": "AMD EPYC 7763 64-Core Processor",
+        "cpu_affinity_count": 4,
+        "cpu_quota": "unavailable",
+        "environment_flags": {
+          "CFLAGS": "",
+          "CXXFLAGS": "",
+          "LDFLAGS": ""
+        },
+        "linker_version": null
+      }
+    },
+    "xgrammar": {
+      "status": "passed",
+      "removed_links": 1,
+      "patch_validated": true,
+      "baseline_tests_passed": 83,
+      "candidate_tests_passed": 83,
+      "performance_result": "not_measured",
+      "revision": "7e269d56c74c89de52bc8c31e42191155416371f",
+      "existing_pull_request": "https://github.com/mlc-ai/xgrammar/pull/1005",
+      "scenarios": [
+        {
+          "file": "cpp/earley_parser.cc",
+          "baseline": {
+            "linker_driver_wall_sum_median_seconds": 32.140920137,
+            "linker_invocations_median": 1,
+            "mad_seconds": 0.08896256500000277,
+            "max_seconds": 35.442718976,
+            "median_seconds": 35.282290066,
+            "min_seconds": 35.193327501,
+            "samples": [
+              {
+                "compiled_sources": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "compiler_cpu_seconds": 2.837301,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.837903886,
+                "linked_outputs": [
+                  {
+                    "output": "<BUILD>/xgrammar_test",
+                    "wall_seconds": 32.285717486
+                  }
+                ],
+                "linker_driver_cpu_seconds": 32.287853,
+                "linker_driver_wall_sum_seconds": 32.285717486,
+                "linker_invocations": 1,
+                "log_prefix": "logs/incremental-0-baseline-0",
+                "max_compiler_rss_kib": 219416,
+                "max_linker_driver_rss_kib": 399232,
+                "noop_seconds": 0.160579848,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 35.442718976
+              },
+              {
+                "compiled_sources": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "compiler_cpu_seconds": 2.83636,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.836942461,
+                "linked_outputs": [
+                  {
+                    "output": "<BUILD>/xgrammar_test",
+                    "wall_seconds": 32.043368926
+                  }
+                ],
+                "linker_driver_cpu_seconds": 32.045294,
+                "linker_driver_wall_sum_seconds": 32.043368926,
+                "linker_invocations": 1,
+                "log_prefix": "logs/incremental-0-baseline-1",
+                "max_compiler_rss_kib": 219484,
+                "max_linker_driver_rss_kib": 399000,
+                "noop_seconds": 0.16180186,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 35.193327501
+              },
+              {
+                "compiled_sources": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "compiler_cpu_seconds": 2.821956,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.822562868,
+                "linked_outputs": [
+                  {
+                    "output": "<BUILD>/xgrammar_test",
+                    "wall_seconds": 32.140920137
+                  }
+                ],
+                "linker_driver_cpu_seconds": 32.14314,
+                "linker_driver_wall_sum_seconds": 32.140920137,
+                "linker_invocations": 1,
+                "log_prefix": "logs/incremental-0-baseline-2",
+                "max_compiler_rss_kib": 219520,
+                "max_linker_driver_rss_kib": 399304,
+                "noop_seconds": 0.156789615,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 35.282290066
+              }
+            ]
+          },
+          "candidate": {
+            "linker_driver_wall_sum_median_seconds": 32.097951156,
+            "linker_invocations_median": 1,
+            "mad_seconds": 0.058511277000000916,
+            "max_seconds": 35.329735191,
+            "median_seconds": 35.230166453,
+            "min_seconds": 35.171655176,
+            "samples": [
+              {
+                "compiled_sources": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "compiler_cpu_seconds": 2.8340319999999997,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.834876241,
+                "linked_outputs": [
+                  {
+                    "output": "<BUILD>/xgrammar_test",
+                    "wall_seconds": 32.016448126
+                  }
+                ],
+                "linker_driver_cpu_seconds": 32.017583,
+                "linker_driver_wall_sum_seconds": 32.016448126,
+                "linker_invocations": 1,
+                "log_prefix": "logs/incremental-0-candidate-0",
+                "max_compiler_rss_kib": 219388,
+                "max_linker_driver_rss_kib": 399244,
+                "noop_seconds": 0.160708696,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 35.171655176
+              },
+              {
+                "compiled_sources": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "compiler_cpu_seconds": 2.809452,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.810109964,
+                "linked_outputs": [
+                  {
+                    "output": "<BUILD>/xgrammar_test",
+                    "wall_seconds": 32.097951156
+                  }
+                ],
+                "linker_driver_cpu_seconds": 32.099434,
+                "linker_driver_wall_sum_seconds": 32.097951156,
+                "linker_invocations": 1,
+                "log_prefix": "logs/incremental-0-candidate-1",
+                "max_compiler_rss_kib": 219524,
+                "max_linker_driver_rss_kib": 398924,
+                "noop_seconds": 0.161064534,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 35.230166453
+              },
+              {
+                "compiled_sources": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "compiler_cpu_seconds": 2.820831,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.821498285,
+                "linked_outputs": [
+                  {
+                    "output": "<BUILD>/xgrammar_test",
+                    "wall_seconds": 32.190128378
+                  }
+                ],
+                "linker_driver_cpu_seconds": 32.190174999999996,
+                "linker_driver_wall_sum_seconds": 32.190128378,
+                "linker_invocations": 1,
+                "log_prefix": "logs/incremental-0-candidate-2",
+                "max_compiler_rss_kib": 219496,
+                "max_linker_driver_rss_kib": 398868,
+                "noop_seconds": 0.162754061,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/cpp/earley_parser.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 35.329735191
+              }
+            ]
+          },
+          "noise_threshold_seconds": 0.7056458013200001,
+          "performance_result": "inconclusive",
+          "wall_change_percent": -0.1477330777069609,
+          "input_restored": true,
+          "baseline_samples": [
+            {
+              "compiler_cpu_seconds": 2.837301,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.837903886,
+              "linker_driver_cpu_seconds": 32.287853,
+              "linker_driver_wall_sum_seconds": 32.285717486,
+              "linker_invocations": 1,
+              "max_compiler_rss_kib": 219416,
+              "wall_seconds": 35.442718976
+            },
+            {
+              "compiler_cpu_seconds": 2.83636,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.836942461,
+              "linker_driver_cpu_seconds": 32.045294,
+              "linker_driver_wall_sum_seconds": 32.043368926,
+              "linker_invocations": 1,
+              "max_compiler_rss_kib": 219484,
+              "wall_seconds": 35.193327501
+            },
+            {
+              "compiler_cpu_seconds": 2.821956,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.822562868,
+              "linker_driver_cpu_seconds": 32.14314,
+              "linker_driver_wall_sum_seconds": 32.140920137,
+              "linker_invocations": 1,
+              "max_compiler_rss_kib": 219520,
+              "wall_seconds": 35.282290066
+            }
+          ],
+          "candidate_samples": [
+            {
+              "compiler_cpu_seconds": 2.8340319999999997,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.834876241,
+              "linker_driver_cpu_seconds": 32.017583,
+              "linker_driver_wall_sum_seconds": 32.016448126,
+              "linker_invocations": 1,
+              "max_compiler_rss_kib": 219388,
+              "wall_seconds": 35.171655176
+            },
+            {
+              "compiler_cpu_seconds": 2.809452,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.810109964,
+              "linker_driver_cpu_seconds": 32.099434,
+              "linker_driver_wall_sum_seconds": 32.097951156,
+              "linker_invocations": 1,
+              "max_compiler_rss_kib": 219524,
+              "wall_seconds": 35.230166453
+            },
+            {
+              "compiler_cpu_seconds": 2.820831,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.821498285,
+              "linker_driver_cpu_seconds": 32.190174999999996,
+              "linker_driver_wall_sum_seconds": 32.190128378,
+              "linker_invocations": 1,
+              "max_compiler_rss_kib": 219496,
+              "wall_seconds": 35.329735191
+            }
+          ]
+        },
+        {
+          "file": "3rdparty/googletest/googlemock/src/gmock-all.cc",
+          "baseline": {
+            "linker_driver_wall_sum_median_seconds": 32.222217469,
+            "linker_invocations_median": 1,
+            "mad_seconds": 0.1423910649999982,
+            "max_seconds": 34.781120119,
+            "median_seconds": 34.638729054,
+            "min_seconds": 34.348741128,
+            "samples": [
+              {
+                "compiled_sources": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "compiler_cpu_seconds": 2.156352,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.156953182,
+                "linked_outputs": [
+                  {
+                    "output": "<BUILD>/xgrammar_test",
+                    "wall_seconds": 32.222217469
+                  }
+                ],
+                "linker_driver_cpu_seconds": 32.223681,
+                "linker_driver_wall_sum_seconds": 32.222217469,
+                "linker_invocations": 1,
+                "log_prefix": "logs/incremental-1-baseline-0",
+                "max_compiler_rss_kib": 197280,
+                "max_linker_driver_rss_kib": 399376,
+                "noop_seconds": 0.162134338,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 34.638729054
+              },
+              {
+                "compiled_sources": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "compiler_cpu_seconds": 2.1635269999999998,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.164047311,
+                "linked_outputs": [
+                  {
+                    "output": "<BUILD>/xgrammar_test",
+                    "wall_seconds": 31.927110432
+                  }
+                ],
+                "linker_driver_cpu_seconds": 31.929168,
+                "linker_driver_wall_sum_seconds": 31.927110432,
+                "linker_invocations": 1,
+                "log_prefix": "logs/incremental-1-baseline-1",
+                "max_compiler_rss_kib": 197416,
+                "max_linker_driver_rss_kib": 399160,
+                "noop_seconds": 0.160396498,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 34.348741128
+              },
+              {
+                "compiled_sources": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "compiler_cpu_seconds": 2.177323,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.177857201,
+                "linked_outputs": [
+                  {
+                    "output": "<BUILD>/xgrammar_test",
+                    "wall_seconds": 32.344613344
+                  }
+                ],
+                "linker_driver_cpu_seconds": 32.344676,
+                "linker_driver_wall_sum_seconds": 32.344613344,
+                "linker_invocations": 1,
+                "log_prefix": "logs/incremental-1-baseline-2",
+                "max_compiler_rss_kib": 197416,
+                "max_linker_driver_rss_kib": 399352,
+                "noop_seconds": 0.160402241,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 34.781120119
+              }
+            ]
+          },
+          "candidate": {
+            "linker_driver_wall_sum_median_seconds": 0,
+            "linker_invocations_median": 0,
+            "mad_seconds": 0.002537151000000293,
+            "max_seconds": 2.369628704,
+            "median_seconds": 2.367091553,
+            "min_seconds": 2.357912935,
+            "samples": [
+              {
+                "compiled_sources": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "compiler_cpu_seconds": 2.161038,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.161614533,
+                "linked_outputs": [],
+                "linker_driver_cpu_seconds": 0,
+                "linker_driver_wall_sum_seconds": 0,
+                "linker_invocations": 0,
+                "log_prefix": "logs/incremental-1-candidate-0",
+                "max_compiler_rss_kib": 197328,
+                "max_linker_driver_rss_kib": 0,
+                "noop_seconds": 0.16326088,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 2.367091553
+              },
+              {
+                "compiled_sources": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "compiler_cpu_seconds": 2.156009,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.156769983,
+                "linked_outputs": [],
+                "linker_driver_cpu_seconds": 0,
+                "linker_driver_wall_sum_seconds": 0,
+                "linker_invocations": 0,
+                "log_prefix": "logs/incremental-1-candidate-1",
+                "max_compiler_rss_kib": 197296,
+                "max_linker_driver_rss_kib": 0,
+                "noop_seconds": 0.162301629,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 2.357912935
+              },
+              {
+                "compiled_sources": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "compiler_cpu_seconds": 2.167354,
+                "compiler_invocations": 1,
+                "compiler_wall_sum_seconds": 2.167869616,
+                "linked_outputs": [],
+                "linker_driver_cpu_seconds": 0,
+                "linker_driver_wall_sum_seconds": 0,
+                "linker_invocations": 0,
+                "log_prefix": "logs/incremental-1-candidate-2",
+                "max_compiler_rss_kib": 197352,
+                "max_linker_driver_rss_kib": 0,
+                "noop_seconds": 0.161208304,
+                "original_source_count": 1,
+                "original_source_files": [
+                  "<SOURCE>/3rdparty/googletest/googlemock/src/gmock-all.cc"
+                ],
+                "pch_creations": 0,
+                "settling_builds": 0,
+                "skipped_tests": [],
+                "tests_passed": 83,
+                "wall_seconds": 2.369628704
+              }
+            ]
+          },
+          "noise_threshold_seconds": 0.69277458108,
+          "performance_result": "improved",
+          "wall_change_percent": -93.16634409619986,
+          "input_restored": true,
+          "baseline_samples": [
+            {
+              "compiler_cpu_seconds": 2.156352,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.156953182,
+              "linker_driver_cpu_seconds": 32.223681,
+              "linker_driver_wall_sum_seconds": 32.222217469,
+              "linker_invocations": 1,
+              "max_compiler_rss_kib": 197280,
+              "wall_seconds": 34.638729054
+            },
+            {
+              "compiler_cpu_seconds": 2.1635269999999998,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.164047311,
+              "linker_driver_cpu_seconds": 31.929168,
+              "linker_driver_wall_sum_seconds": 31.927110432,
+              "linker_invocations": 1,
+              "max_compiler_rss_kib": 197416,
+              "wall_seconds": 34.348741128
+            },
+            {
+              "compiler_cpu_seconds": 2.177323,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.177857201,
+              "linker_driver_cpu_seconds": 32.344676,
+              "linker_driver_wall_sum_seconds": 32.344613344,
+              "linker_invocations": 1,
+              "max_compiler_rss_kib": 197416,
+              "wall_seconds": 34.781120119
+            }
+          ],
+          "candidate_samples": [
+            {
+              "compiler_cpu_seconds": 2.161038,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.161614533,
+              "linker_driver_cpu_seconds": 0,
+              "linker_driver_wall_sum_seconds": 0,
+              "linker_invocations": 0,
+              "max_compiler_rss_kib": 197328,
+              "wall_seconds": 2.367091553
+            },
+            {
+              "compiler_cpu_seconds": 2.156009,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.156769983,
+              "linker_driver_cpu_seconds": 0,
+              "linker_driver_wall_sum_seconds": 0,
+              "linker_invocations": 0,
+              "max_compiler_rss_kib": 197296,
+              "wall_seconds": 2.357912935
+            },
+            {
+              "compiler_cpu_seconds": 2.167354,
+              "compiler_invocations": 1,
+              "compiler_wall_sum_seconds": 2.167869616,
+              "linker_driver_cpu_seconds": 0,
+              "linker_driver_wall_sum_seconds": 0,
+              "linker_invocations": 0,
+              "max_compiler_rss_kib": 197352,
+              "wall_seconds": 2.369628704
+            }
+          ]
+        }
+      ],
+      "runs": 3,
+      "jobs": 2,
+      "cmake_args": [
+        "-DCMAKE_EXE_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld",
+        "-DCMAKE_SHARED_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld",
+        "-DCMAKE_MODULE_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld"
+      ],
+      "compiler_version": "Ubuntu clang version 21.1.8 (++20251221032922+2078da43e25a-1~exp1~20251221153059.70)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-21/bin\n",
+      "cmake_version": "cmake version 4.2.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+      "ninja_version": "1.13.0.git.kitware.jobserver-pipe-1\n",
+      "dependency_search": {
+        "budget_exhausted": false,
+        "cache_hits": 0,
+        "configurations": 2,
+        "elapsed_seconds": 99.378612631,
+        "final_verifications": 1,
+        "profiled_links": 1,
+        "time_budget_seconds": 1800,
+        "trial_limit": 128
+      },
+      "link_evidence": {
+        "changed_links": [
+          {
+            "baseline_evidence_directory": "dependency-profiles/0",
+            "evidence_directory": "dependency-trials/final/link-replay/0",
+            "identical_elf": true,
+            "output": "<BUILD>/xgrammar_test",
+            "removed_archives": [
+              {
+                "archive": "lib/libgmock.a",
+                "extracted": 0,
+                "members": 1,
+                "retained_copy": false
+              }
+            ]
+          }
+        ],
+        "compiler_commands_unchanged": true,
+        "omitted_archive_compilations": [],
+        "scope": "ELF LLD archive extraction and byte-identical link replay using the same baseline objects; one configured build"
+      },
+      "machine": {
+        "architecture": "x86_64",
+        "cpu_model": "AMD EPYC 9V74 80-Core Processor",
+        "cpu_affinity_count": 4,
+        "cpu_quota": "unavailable",
+        "environment_flags": {
+          "CFLAGS": "",
+          "CXXFLAGS": "",
+          "LDFLAGS": ""
+        },
+        "linker_version": null
+      }
+    }
+  }
+}

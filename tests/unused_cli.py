@@ -25,7 +25,7 @@ def digest(tree):
 
 with tempfile.TemporaryDirectory(prefix='buildray unused ') as folder:
     root = Path(folder)
-    tools = root / 'tool bin'
+    tools = root / "tool bin's"
     tools.mkdir()
     for name in ['ld.lld', 'ld.lld-20', 'ld.lld-21', 'ld.lld-22']:
         (tools / name).symlink_to(Path(linker).absolute())

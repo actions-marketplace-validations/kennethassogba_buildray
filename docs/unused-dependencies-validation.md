@@ -16,6 +16,28 @@ in some targets; these results describe the common LLD profile, not its default
 linker. PCH, Unity and compiler caches are disabled. Configuration, analysis,
 link replays and tests are outside build timings.
 
+## 22 October rerun
+
+Buildray `65a5ded169687b618a9cb04cecadf4bde1040083` repeats the dependency search
+with the same Clang 21 / ELF LLD settings and full test validation.
+
+| Project | Result |
+| --- | --- |
+| XGrammar `7e269d5` | Same unused GoogleMock link as [draft #1005](https://github.com/mlc-ai/xgrammar/pull/1005); no duplicate PR |
+| SentencePiece `e0cce7d` | Baseline passes; aliases still exclude the executable links |
+| Snappy `9c28114` | Baseline passes; all six supported links contribute archive objects |
+
+On XGrammar, three alternating pairs give **34.639 → 2.367 s** after a
+`gmock-all.cc` edit, with one link avoided. The parser edit remains inconclusive
+at **35.282 → 35.230 s**. Both variants and every incremental sample pass all
+83 tests. Compiler commands remain unchanged and same-object link replay gives
+identical ELF bytes. This is still a GoogleMock rebuild gain, not a clean-build gain.
+
+The [compact evidence](evidence/dependency-corpus-v013-summary.json) records pins,
+settings, samples and validation. [Workflow artifacts](https://github.com/kennethassogba/buildray/actions/runs/39804768971)
+retain the complete reports and logs. No new patch is proposed for Snappy or
+SentencePiece.
+
 ## Follow-up with CMake variables
 
 The [19 October corpus run](https://github.com/kennethassogba/buildray/actions/runs/39323923513)

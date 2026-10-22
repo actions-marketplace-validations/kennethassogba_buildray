@@ -406,9 +406,18 @@ buildray::Options parse(const std::vector<std::string>& args) {
             if (flag.starts_with("-DCMAKE_LINKER_TYPE") || flag.starts_with("-DCMAKE_C_USING_LINKER_") ||
                 flag.starts_with("-DCMAKE_CXX_USING_LINKER_"))
                 throw std::runtime_error("--linker cannot be combined with CMake linker selection flags");
+        // CMake's USING_LINKER value is a shell fragment in its generated rule.
+        // Quote the path, including spaces and apostrophes. CMake strips
+        // outer quotes around an entire -D value, so keep the flag prefix outside.
+        std::string linker_flag = "--ld-path='";
+        for (const char ch : linker) {
+            if (ch == '\'') linker_flag += "'\\''";
+            else linker_flag += ch;
+        }
+        linker_flag += "'";
         options.cmake_args.push_back("-DCMAKE_LINKER_TYPE=BUILDRAY");
-        options.cmake_args.push_back("-DCMAKE_C_USING_LINKER_BUILDRAY=--ld-path=" + linker);
-        options.cmake_args.push_back("-DCMAKE_CXX_USING_LINKER_BUILDRAY=--ld-path=" + linker);
+        options.cmake_args.push_back("-DCMAKE_C_USING_LINKER_BUILDRAY=" + linker_flag);
+        options.cmake_args.push_back("-DCMAKE_CXX_USING_LINKER_BUILDRAY=" + linker_flag);
     }
     if ((options.command == "deps" || options.command == "headers" || options.command == "unity" || options.command == "pch" || options.command == "prune-links" || options.command == "prune-deps") && !explicit_c_compiler) {
         auto driver = buildray::fs::path(options.compiler);
