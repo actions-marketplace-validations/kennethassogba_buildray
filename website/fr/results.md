@@ -51,6 +51,10 @@ Sur Highway, les variables font passer la couverture de 17 à 572 liens éligibl
 
 La mesure du 22 octobre confirme le patch XGrammar existant : **34,639 → 2,367 s** après une modification de GoogleMock, avec les 83 tests réussis. Modifier le parseur ne donne aucun gain confirmé. Snappy passe son build de référence, mais ses six liens pris en charge utilisent les bibliothèques ; les alias bloquent encore SentencePiece. Ces essais n’ont produit aucune PR supplémentaire. [Rapports et configuration](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md#22-october-rerun).
 
+MuJoCo passe aussi ses 3 519 tests avec le nouveau profil de configuration. Sur 236 liens éligibles, les 50 configurations essayées sont rejetées. Aucun patch de dépendances ni gain n’est validé sur ce run.
+
+Sur SentencePiece, la prise en charge des alias permet désormais d’examiner neuf liens dans six exécutables. Les bibliothèques contribuent toutes du code : aucun retrait ni gain n’est proposé.
+
 ## Les limites à garder en tête {#limits-of-the-evidence}
 
 Les tests couvrent la configuration fournie. Ils ne remplacent pas la validation des autres plateformes et des consommateurs d’une bibliothèque. Trois paires et un seuil de variation restent une méthode de tri, pas une étude statistique.

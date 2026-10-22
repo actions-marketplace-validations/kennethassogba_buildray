@@ -3,6 +3,12 @@ name: Unused dependency corpus
 on:
   workflow_call:
     inputs:
+      target:
+        type: string
+        default: ''
+      dependency:
+        type: string
+        default: ''
       project:
         type: string
         default: all
@@ -11,6 +17,12 @@ on:
         default: false
   workflow_dispatch:
     inputs:
+      target:
+        type: string
+        default: ''
+      dependency:
+        type: string
+        default: ''
       project:
         description: Project to evaluate.
         type: choice
@@ -115,6 +127,8 @@ jobs:
         uses: ./
         with:
           command: prune-deps
+          link-target: ${{ inputs.target }}
+          link-dependency: ${{ inputs.dependency }}
           source: fixtures/${{ matrix.project }}
           runs: '3'
           jobs: ${{ matrix.jobs }}
