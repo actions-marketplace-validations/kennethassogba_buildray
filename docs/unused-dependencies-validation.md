@@ -41,7 +41,7 @@ These are warm incremental builds after comment edits; no clean-build gain is cl
 The generated patch is 31,980 bytes. [Draft Highway #3509](https://github.com/google/highway/pull/3509)
 keeps 83 test-library removals in 21 lines, omitting the separate example change.
 Its affected-target build commands match the generated patch locally with Clang 21;
-standalone, shared and no-contrib commands stay unchanged. Full upstream tests are pending. [Settings and samples](evidence/highway-v013-summary.json).
+standalone, shared and no-contrib commands stay unchanged. Full upstream test results are tracked in that PR. [Settings and samples](evidence/highway-v013-summary.json).
 
 ## 22 October rerun
 

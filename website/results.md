@@ -48,7 +48,7 @@ The grouped search removes 40 unused links in one trial on a test project, inclu
 | Project | What is validated |
 | --- | --- |
 | XGrammar | GoogleMock edit: **34.639 → 2.367 s**, with all 83 tests passing. The parser edit stays inconclusive. The patch is already in [draft #1005](https://github.com/mlc-ai/xgrammar/pull/1005). |
-| Highway | After [merged #3502](https://github.com/google/highway/pull/3502), another 84 link removals validate across 77 targets. A `vqsort.cc` edit measures **3.405 → 1.641 s**, with **81 → 18** links, 2,784 passing tests and 23 unchanged skips. [Draft #3509](https://github.com/google/highway/pull/3509) keeps 83 test-library removals in 21 lines; its full test run is pending. |
+| Highway | After [merged #3502](https://github.com/google/highway/pull/3502), another 84 link removals validate across 77 targets. A `vqsort.cc` edit measures **3.405 → 1.641 s**, with **81 → 18** links, 2,784 passing tests and 23 unchanged skips. [Draft #3509](https://github.com/google/highway/pull/3509) keeps 83 test-library removals in 21 lines; its full test results are tracked there. |
 | SentencePiece | Alias support exposes nine links across six executables. Every archive contributes code; no removal is proposed. |
 | Snappy | The baseline passes. All six supported links contribute archive objects; no removal is proposed. |
 | MuJoCo | 3,519 tests pass. On 236 eligible links, all 50 trial configurations are rejected. No patch or speedup is validated. |

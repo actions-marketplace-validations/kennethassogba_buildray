@@ -37,7 +37,7 @@
   "patch_validated": true,
   "clean_builds_measured": false,
   "patch_bytes": 31980,
-  "upstream_status": "Draft #3509 keeps a compact test-library-only patch; its full upstream test run is pending.",
+  "upstream_status": "Draft #3509 keeps a compact test-library-only patch and tracks its full upstream test results.",
   "scenarios": [
     {
       "file": "hwy/contrib/sort/vqsort.cc",

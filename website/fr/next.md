@@ -13,7 +13,7 @@ Essayez un nouveau projet depuis **Actions → Evaluate a repository**. Le [guid
 ## Les prochaines étapes {#next-steps}
 
 1. Comprendre les changements de lien rejetés sur MuJoCo à partir des commandes conservées, sans assouplir les contrôles sur les binaires.
-2. Terminer la validation de la [draft Highway](https://github.com/google/highway/pull/3509), puis tester de nouveaux projets avec le workflow générique. Garder les nettoyages dont le gain mesuré est utile.
+2. Suivre la [draft Highway](https://github.com/google/highway/pull/3509), puis tester de nouveaux projets avec le workflow générique. Garder les nettoyages dont le gain mesuré est utile.
 3. Prendre en charge les fichiers d’arguments du compilateur pour éviter le contournement de la détection des modules.
 
 Les [résultats du nettoyage](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md) distinguent le projet de test des mesures sur les vrais projets. Ne trouver aucun retrait éligible ne signifie pas que toutes les dépendances sont nécessaires.
