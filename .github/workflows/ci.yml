@@ -3,7 +3,9 @@ name: Buildray CI
 on:
   push:
     branches: [main]
+    paths-ignore: ['website/**', 'docs/**', '**/*.md', 'package*.json']
   pull_request:
+    paths-ignore: ['website/**', 'docs/**', '**/*.md', 'package*.json']
   workflow_dispatch:
     inputs:
       parallelism_corpus:
