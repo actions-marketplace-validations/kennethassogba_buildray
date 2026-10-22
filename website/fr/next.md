@@ -10,9 +10,9 @@ Sur XGrammar, retirer une dépendance inutilisée évite une étape de lien d’
 
 ## Les prochaines étapes {#next-steps}
 
-1. Résoudre les alias CMake, qui excluent encore de la recherche les liens des programmes SentencePiece.
-2. Chercher les dépendances Highway restantes après le nettoyage accepté. Les copies redondantes d’archives sont désormais prises en charge, avec la même exigence de binaire identique.
-3. Prendre en charge les fichiers d’arguments du compilateur pour éviter un contournement de la détection des modules dans les projets concernés.
+1. Comprendre les changements de lien rejetés sur MuJoCo à partir des commandes conservées, sans assouplir les contrôles sur les binaires.
+2. Chercher les dépendances Highway restantes après le nettoyage accepté. Les copies redondantes d’archives sont désormais prises en charge.
+3. Prendre en charge les fichiers d’arguments du compilateur pour éviter le contournement de la détection des modules.
 
 Les [résultats du nettoyage](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md) distinguent le projet de test des mesures sur les vrais projets. Ne trouver aucun retrait éligible ne signifie pas que toutes les dépendances sont nécessaires.
 

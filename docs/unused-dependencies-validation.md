@@ -26,6 +26,7 @@ with the same Clang 21 / ELF LLD settings and full test validation.
 | XGrammar `7e269d5` | Same unused GoogleMock link as [draft #1005](https://github.com/mlc-ai/xgrammar/pull/1005); no duplicate PR |
 | SentencePiece `e0cce7d` | Baseline passes; aliases still exclude the executable links |
 | Snappy `9c28114` | Baseline passes; all six supported links contribute archive objects |
+| MuJoCo `651bae1` | 3,519 tests pass; 236 eligible links, 50 trial configurations, no accepted removal |
 
 On XGrammar, three alternating pairs give **34.639 → 2.367 s** after a
 `gmock-all.cc` edit, with one link avoided. The parser edit remains inconclusive
@@ -38,12 +39,28 @@ settings, samples and validation. [Workflow artifacts](https://github.com/kennet
 retain the complete reports and logs. No new patch is proposed for Snappy or
 SentencePiece.
 
+MuJoCo uses the common settings `CMAKE_CXX_SCAN_FOR_MODULES=OFF` and
+`CMAKE_LINK_DEPENDS_USE_LINKER=OFF`. This gets past the earlier module-map
+response-file blocker. The search then rejects 10 configurations for graph
+changes, 18 for changed compiler commands or usage requirements, and 22 for
+other link-command changes. The budget is not exhausted. No candidate patch or
+before/after timing is validated.
+
 llama.cpp `36cbf415` was also tried. Its default target forces Unity; a common
 non-Unity profile then fails to compile `src/models/clef.cpp` because `<algorithm>`
 is missing. No cleanup or timing result was accepted. It is excluded from the
 corpus: its [contribution policy](https://github.com/ggml-org/llama.cpp/blob/master/AGENTS.md)
 prohibits automated PR submissions. The diagnostic is retained in
 [the failed run](https://github.com/kennethassogba/buildray/actions/runs/39809070095).
+
+## SentencePiece with aliases
+
+The alias implementation was checked locally on SentencePiece v0.2.2
+`e0cce7d37b065b5140349dbe12c6bcf6192fdd78`, with Clang 21, LLD and two
+build jobs. The full baseline build and its CTest entry pass. The search now
+profiles six executables and examines nine links, all through CMake aliases.
+Each archive contributes objects, so none enters a removal trial. No patch or
+before/after gain is claimed. [Configuration and extraction counts](evidence/sentencepiece-aliases-summary.json).
 
 ## Follow-up with CMake variables
 

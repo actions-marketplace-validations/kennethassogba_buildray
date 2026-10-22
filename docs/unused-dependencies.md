@@ -101,7 +101,7 @@ run still fail. The Action exposes the same policy as `allow-baseline-skips` and
 retains the JUnit evidence.
 
 A subsequent build or test failure is blocking. Public
-interfaces, shared-library dependencies, aliases, response files and
+interfaces, shared-library dependencies, response files and
 ambiguous declarations are outside this scope. Unsupported cases are skipped or
 rejected; they are not evidence that those dependencies are necessary.
 
@@ -154,3 +154,5 @@ as above. The [corpus workflow](../.github/workflows/unused-dependencies.yml)
 shows the complete configuration for XGrammar, SentencePiece and MuJoCo.
 
 The short form is `buildray clean-deps [DIR]`. It detects Clang and selects LLD for both variants; `--linker /path/to/ld.lld` overrides the executable. The original `prune-deps` command retains its configured-linker behavior. Both forms accept `--source DIR`. CMake linker-selection overrides cannot be combined with `--linker`.
+
+Aliases observed in the configured project are matched to their real target. The patch keeps the original spelling and leaves alias definitions alone. Ambiguous names are skipped. Rejected non-removal link-command changes retain both normalized argument lists in `dependency-trials/*/link-replay/link-command-change.json`.

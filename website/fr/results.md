@@ -43,13 +43,17 @@ Ces mesures utilisent un réglage commun aux deux versions pour contourner des d
 
 ## Le nettoyage des dépendances aujourd’hui {#dependency-cleanup-so-far}
 
-La recherche par groupes retire 40 liens inutiles en un essai sur un projet de test, y compris quand les bibliothèques viennent d’une variable CMake. Une vérification finale contrôle le patch combiné. [Résultats et limites](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md).
+La recherche groupée retire 40 liens inutiles en un essai sur un projet de test, y compris avec des listes de bibliothèques stockées dans des variables CMake. Une vérification finale valide le patch combiné.
 
-Sur XGrammar, retirer le lien inutilisé vers `gmock` évite environ 32 secondes de lien LTO quand `gmock-all.cc` change : le rebuild passe de 34,768 à 2,589 s, avec les 83 tests réussis. L’edit du parseur reste non concluant à 35,769 → 35,995 s. Le gain concerne les changements dans GoogleMock ; il ne démontre pas un build complet plus rapide. SentencePiece reste sans candidat pris en charge, car ses programmes utilisent des alias. MuJoCo passe 3 519 tests, mais les fichiers de réponse bloquent la recherche.
+| Projet | Ce qui est validé |
+| --- | --- |
+| XGrammar | Modification de GoogleMock : **34,639 → 2,367 s**, avec les 83 tests réussis. Modifier le parseur ne donne aucun gain confirmé. Le patch est déjà dans la [draft #1005](https://github.com/mlc-ai/xgrammar/pull/1005). |
+| Highway | La [PR #3502 mergée](https://github.com/google/highway/pull/3502) retire 35 liens inutiles. Avant son intégration, une modification de `vqsort.cc` mesurait **4,537 → 3,581 s**, avec 32 liens en moins, 2 784 tests réussis et les mêmes 23 exceptions. |
+| SentencePiece | Les alias permettent d’examiner neuf liens dans six exécutables. Les bibliothèques contribuent toutes du code ; aucun retrait n’est proposé. |
+| Snappy | Le build de référence passe. Ses six liens pris en charge utilisent les bibliothèques ; aucun retrait n’est proposé. |
+| MuJoCo | Les 3 519 tests passent. Sur 236 liens éligibles, les 50 configurations essayées sont rejetées. Aucun patch ni gain n’est validé. |
 
-Sur Highway, les variables font passer la couverture de 17 à 572 liens éligibles. Buildray valide 35 retraits sur 35 programmes, avec 2 784 tests réussis et les mêmes 23 tests ignorés à chaque étape. Modifier `vqsort.cc` prend désormais 4,537 → 3,581 s, soit un gain de 21,07 %, avec 32 liens de moins dans chaque paire. Modifier `targets.cc` reste non concluant à 4,637 → 4,626 s. La recherche atteint sa limite de 64 essais : le patch validé reste un sous-ensemble. Les builds complets ne sont pas à nouveau chronométrés. [Run et preuves](https://github.com/kennethassogba/buildray/actions/runs/39323921286).
-
-La mesure du 22 octobre confirme le patch XGrammar existant : **34,639 → 2,367 s** après une modification de GoogleMock, avec les 83 tests réussis. Modifier le parseur ne donne aucun gain confirmé. Snappy passe son build de référence, mais ses six liens pris en charge utilisent les bibliothèques ; les alias bloquent encore SentencePiece. Ces essais n’ont produit aucune PR supplémentaire. [Rapports et configuration](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md#22-october-rerun).
+Le gain XGrammar concerne les modifications de GoogleMock, sans gain général démontré sur un build complet. La mesure Highway porte sur la révision testée avant le merge. [Révisions, configuration et résultats bruts](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md).
 
 ## Les limites à garder en tête {#limits-of-the-evidence}
 

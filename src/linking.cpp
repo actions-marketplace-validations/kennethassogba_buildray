@@ -316,8 +316,15 @@ json::Object verify_unused_link_inputs(const fs::path& bs, const fs::path& bb,
             else removed.push_back(arg);
         }
         if (current != found->second.size() || removed.empty() ||
-            std::ranges::any_of(removed, [](const std::string& arg) { return arg.starts_with('-') || !arg.ends_with(".a"); }))
-            throw std::runtime_error("Link command changed more than removing explicit static archives");
+            std::ranges::any_of(removed, [](const std::string& arg) { return arg.starts_with('-') || !arg.ends_with(".a"); })) {
+            json::Array previous, candidate;
+            for (const auto& arg : argv) previous.push_back(arg);
+            for (const auto& arg : found->second) candidate.push_back(arg);
+            const auto diagnostic = analysis / "link-command-change.json";
+            write_json(diagnostic, json::Object{{"output", output},
+                {"baseline", std::move(previous)}, {"candidate", std::move(candidate)}});
+            throw std::runtime_error("Link command changed more than removing explicit static archives; see " + diagnostic.string());
+        }
         const auto folder = analysis / std::to_string(index++);
         fs::create_directories(folder);
         struct ReplayCleanup {

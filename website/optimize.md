@@ -64,6 +64,8 @@ Target names and library lists can use CMake variables, including in loops and f
 
 `buildray clean-deps .` runs this search and selects ELF LLD for both variants. Use `--linker /path/to/ld.lld` to choose its executable. The old `prune-deps` command keeps your configured linker unless `--linker` is supplied. If a library only supplies headers or compilation settings, the patch can keep those while removing the link. Add `--rebuild-file` to check whether an edit triggers fewer links. The [command reference](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies.md) gives the setup and limits.
 
+Dependency names can also be CMake aliases. Buildray checks the underlying library, keeps the alias definition, and preserves its spelling in any patch. If another linker argument changes, the rejected trial saves both commands in `link-command-change.json` for review.
+
 The search defaults to 64 trial configurations and 300 seconds. Change these with `--max-dependency-trials` and `--dependency-time-budget`. The final build and tests still run after the search budget is reached.
 
 If your project deliberately skips some tests, use `--allow-baseline-skips`. Buildray records those tests separately and requires the same skipped names after the patch and each measured file edit. Skipped tests never count as passed. Disabled tests, failures and an all-skipped test run still block validation.

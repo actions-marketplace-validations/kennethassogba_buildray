@@ -683,6 +683,58 @@
         },
         "linker_version": null
       }
+    },
+    "mujoco": {
+      "status": "passed",
+      "removed_links": 0,
+      "patch_validated": false,
+      "baseline_tests_passed": 3519,
+      "candidate_tests_passed": null,
+      "performance_result": "no_changes",
+      "runs": 3,
+      "jobs": 4,
+      "cmake_args": [
+        "-DMUJOCO_BUILD_EXAMPLES=OFF",
+        "-DMUJOCO_BUILD_SIMULATE=OFF",
+        "-DMUJOCO_BUILD_TESTS=ON",
+        "-DMUJOCO_TEST_PYTHON_UTIL=OFF",
+        "-DCMAKE_CXX_SCAN_FOR_MODULES=OFF",
+        "-DCMAKE_LINK_DEPENDS_USE_LINKER=OFF",
+        "-DCMAKE_EXE_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld",
+        "-DCMAKE_SHARED_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld",
+        "-DCMAKE_MODULE_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld"
+      ],
+      "compiler_version": "Ubuntu clang version 21.1.8 (++20251221032922+2078da43e25a-1~exp1~20251221153059.70)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-21/bin\n",
+      "cmake_version": "cmake version 4.2.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+      "ninja_version": "1.13.0.git.kitware.jobserver-pipe-1\n",
+      "dependency_search": {
+        "budget_exhausted": false,
+        "cache_hits": 0,
+        "configurations": 50,
+        "elapsed_seconds": 1092.076966443,
+        "final_verifications": 0,
+        "profiled_links": 76,
+        "time_budget_seconds": 1800,
+        "trial_limit": 128
+      },
+      "eligible_links": 236,
+      "revision": "651bae11c3c38efe483f033b4b7e869e7ce3f4ec",
+      "machine": {
+        "architecture": "x86_64",
+        "cpu_model": "AMD EPYC 7763 64-Core Processor",
+        "cpu_affinity_count": 4,
+        "cpu_quota": "unavailable",
+        "environment_flags": {
+          "CFLAGS": "",
+          "CXXFLAGS": "",
+          "LDFLAGS": ""
+        }
+      },
+      "rejections": {
+        "CMake removal changed unexpected target relationships or retained the direct link": 10,
+        "Dependency removal changed compiler commands or usage requirements": 18,
+        "Link command changed more than removing explicit static archives": 22
+      }
     }
   }
 }
