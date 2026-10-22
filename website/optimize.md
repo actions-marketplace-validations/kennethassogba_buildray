@@ -17,13 +17,13 @@ buildray profile --source /path/to/project --compiler clang++-21 --jobs 2
 ## Clean up includes
 
 ```bash
-buildray optimize --source /path/to/project --runs 3 --jobs 2
+buildray clean /path/to/project --runs 3 --jobs 2
 buildray headers --source /path/to/project \
   --forward-declarations --header-path src \
   --exclude third_party --runs 3 --jobs 2
 ```
 
-`optimize` tries removing unused includes from C++ sources. `headers` works on observed headers; `--forward-declarations` also tries replacing includes with forward declarations. Analysis uses actual compiler commands. It does not enforce every clang-tidy style rule.
+`clean` (also called `optimize`) tries removing unused includes from C++ sources. `headers` works on observed headers; `--forward-declarations` also tries replacing includes with forward declarations. Analysis uses actual compiler commands. It does not enforce every clang-tidy style rule.
 
 Excluded paths still build and run tests, but their contents are not edited. Files generated or downloaded during configuration are also excluded from edits.
 
@@ -62,7 +62,7 @@ CMake may also remove a redundant copy of a library that stays linked. Buildray 
 
 Target names and library lists can use CMake variables, including in loops and functions. The patch changes only the target and list values that were tested. Other values keep the original command, and shared variable definitions stay unchanged.
 
-This mode needs ELF LLD, selected explicitly for both variants. If a library only supplies headers or compilation settings, the patch can keep those while removing the link. Add `--rebuild-file` to check whether an edit triggers fewer links. The [command reference](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies.md) gives the setup and limits.
+`buildray clean-deps .` runs this search and selects ELF LLD for both variants. Use `--linker /path/to/ld.lld` to choose its executable. The old `prune-deps` command keeps your configured linker unless `--linker` is supplied. If a library only supplies headers or compilation settings, the patch can keep those while removing the link. Add `--rebuild-file` to check whether an edit triggers fewer links. The [command reference](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies.md) gives the setup and limits.
 
 The search defaults to 64 trial configurations and 300 seconds. Change these with `--max-dependency-trials` and `--dependency-time-budget`. The final build and tests still run after the search budget is reached.
 

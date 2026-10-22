@@ -1,6 +1,7 @@
 """Unused archives: real LLD extraction, identical ELF replay, coverage and rejection cases."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -24,6 +25,10 @@ def digest(tree):
 
 with tempfile.TemporaryDirectory(prefix='buildray unused ') as folder:
     root = Path(folder)
+    tools = root / 'tool bin'
+    tools.mkdir()
+    for name in ['ld.lld', 'ld.lld-20', 'ld.lld-21', 'ld.lld-22']:
+        (tools / name).symlink_to(Path(linker).absolute())
     source = root / 'source tree'
     source.mkdir()
     (source / 'main.cpp').write_text('extern "C" int part(void); int main() { return part(); }\n')
@@ -43,9 +48,16 @@ add_test(NAME works COMMAND sample)
     def invoke(label, *args, expected=0):
         work = root / label
         before = digest(source)
-        run(binary, 'prune-deps', '--source', source, '--work-dir', work,
-            '--compiler', compiler, '--runs', 3, '--jobs', 2, *args,
-            '--', f'-DCMAKE_EXE_LINKER_FLAGS=--ld-path={linker}', expected=expected)
+        if label == 'unused':
+            # The public command selects LLD without replacing project linker flags.
+            run(binary, 'clean-deps', source, '--work-dir', work,
+                '--compiler', compiler, '--runs', 3, '--jobs', 2, *args,
+                '--', '-DCMAKE_EXE_LINKER_FLAGS=-Wl,--build-id=sha1', expected=expected,
+                env={**os.environ, 'PATH': str(tools) + os.pathsep + os.environ['PATH']})
+        else:
+            run(binary, 'prune-deps', '--source', source, '--work-dir', work,
+                '--compiler', compiler, '--runs', 3, '--jobs', 2, *args,
+                '--', f'-DCMAKE_EXE_LINKER_FLAGS=--ld-path={linker}', expected=expected)
         assert before == digest(source), 'Original project was modified'
         return work, json.loads((work / 'report.json').read_text())
 

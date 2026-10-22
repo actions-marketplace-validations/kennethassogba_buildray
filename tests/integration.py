@@ -49,13 +49,21 @@ def optimize(source, work, *extra, expected=0, runs=1):
                "--jobs", "2", *extra, expected=expected)
 
 
+short_help = run(binary, "--help")
+assert "clean-deps" in short_help and len(short_help.splitlines()) < 30
+assert "--max-dependency-trials" in run(binary, "--help-all")
+for arguments in [("measure", ".", "--source", "."), ("measure", ".", "."),
+                  ("clean", "--linker", "lld"), ("clean", "--unknown")]:
+    run(binary, *arguments, expected=2)
+
 with tempfile.TemporaryDirectory(prefix="buildray integration ") as directory:
     root = Path(directory)
     source = root / "source tree"
     project(source)
     original = digest(source)
     output = root / "result"
-    optimize(source, output, runs=3)
+    run(binary, "clean", str(source), "--work-dir", str(output),
+        "--compiler", compiler, "--clang-tidy", tidy, "--runs", "3", "--jobs", "2")
     report = json.loads((output / "report.json").read_text())
     assert report["status"] == "passed" and report["validation"] == "build_and_tests_passed", report
     assert report["patch_validated"] is True
@@ -86,8 +94,8 @@ with tempfile.TemporaryDirectory(prefix="buildray integration ") as directory:
     assert no_report["performance_result"] == "no_changes"
 
     measured = root / "measurement"
-    run(binary, "measure", "--source", str(source), "--work-dir", str(measured),
-        "--compiler", compiler, "--runs", "1")
+    run(binary, "measure", "--work-dir", str(measured),
+        "--runs", "1", cwd=source)
     measured_report = json.loads((measured / "report.json").read_text())
     assert measured_report["status"] == "passed" and "candidate" not in measured_report
     assert measured_report["baseline"]["median_seconds"] > 0

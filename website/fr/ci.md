@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: kennethassogba/buildray@42ad4e2bbf88e162fdfb4604619a48e80267d7cb
+      - uses: kennethassogba/buildray@v0.13.0
         with:
           source: .
           cmake-args: '["-DBUILD_TESTING=ON"]'
@@ -31,7 +31,7 @@ jobs:
           max-regression-percent: '5'
 ```
 
-Cet exemple fixe une révision de Buildray pour rendre les mises à jour explicites. Adaptez l’option de tests CMake à votre projet. L’Action installe ses outils sur Ubuntu 24.04 et compile la CLI ; ce travail de préparation est hors des temps comparés. Elle est utilisable depuis le dépôt, sans publication Marketplace.
+Cet exemple utilise une version publiée. Pour une référence immuable, utilisez son SHA complet. Adaptez l’option de tests CMake à votre projet. L’Action installe ses outils sur Ubuntu 24.04 et compile la CLI ; ce travail de préparation est hors des temps comparés. Elle fonctionne aussi directement depuis le dépôt.
 
 ## Retrouver les résultats {#find-the-results}
 
@@ -44,10 +44,12 @@ L’Action n’applique pas le patch et n’ouvre pas de PR. Les sources et les 
 Dans l’étape Buildray, ajoutez par exemple ces entrées à `with` :
 
 ```yaml
-command: optimize
+command: clean-deps
 runs: '3'
 jobs: '2'
 ```
+
+`command: clean` nettoie les includes ; `command: clean-deps` cherche les bibliothèques statiques privées inutiles et choisit LLD automatiquement. Les anciens noms restent disponibles.
 
 Les expériences d’optimisation comparent le projet avec sa propre copie modifiée. Elles ignorent `baseline-ref`, qui sert à la comparaison entre révisions.
 

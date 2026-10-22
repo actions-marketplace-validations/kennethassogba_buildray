@@ -152,3 +152,5 @@ as the CLI. The `archive-profile` output points to retained baseline evidence. T
 Action installs LLD with its LLVM tools. Select it explicitly in `cmake-args`
 as above. The [corpus workflow](../.github/workflows/unused-dependencies.yml)
 shows the complete configuration for XGrammar, SentencePiece and MuJoCo.
+
+The short form is `buildray clean-deps [DIR]`. It detects Clang and selects LLD for both variants; `--linker /path/to/ld.lld` overrides the executable. The original `prune-deps` command retains its configured-linker behavior. Both forms accept `--source DIR`. CMake linker-selection overrides cannot be combined with `--linker`.

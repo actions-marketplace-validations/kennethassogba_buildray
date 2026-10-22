@@ -18,13 +18,13 @@ buildray profile --source /chemin/du/projet \
 ## Nettoyer les includes {#clean-up-includes}
 
 ```bash
-buildray optimize --source /chemin/du/projet --runs 3 --jobs 2
+buildray clean /chemin/du/projet --runs 3 --jobs 2
 buildray headers --source /chemin/du/projet \
   --forward-declarations --header-path src \
   --exclude third_party --runs 3 --jobs 2
 ```
 
-`optimize` essaie de supprimer les includes inutiles dans les sources C++. `headers` travaille sur les headers observés ; son option `--forward-declarations` essaie aussi des déclarations anticipées. L’analyse utilise les commandes de compilation réelles. Elle ne constitue pas un audit de toutes les règles de style de clang-tidy.
+`clean` (anciennement `optimize`) essaie de supprimer les includes inutiles dans les sources C++. `headers` travaille sur les headers observés ; son option `--forward-declarations` essaie aussi des déclarations anticipées. L’analyse utilise les commandes de compilation réelles. Elle ne constitue pas un audit de toutes les règles de style de clang-tidy.
 
 Les chemins exclus restent compilés et testés, mais leur contenu n’est pas modifié. Les fichiers générés ou téléchargés pendant la configuration sont également exclus des modifications.
 
@@ -81,3 +81,5 @@ git apply /chemin/du/run/includes.patch
 ```
 
 Relisez les modifications et testez vos autres configurations avant de les intégrer. Les [références techniques](https://github.com/kennethassogba/buildray/tree/main/docs) détaillent les règles de chaque commande.
+
+`buildray clean-deps .` lance cette recherche avec LLD pour les deux versions. `--linker /chemin/vers/ld.lld` choisit son exécutable. L’ancien nom `prune-deps` conserve le linker configuré, sauf si `--linker` est fourni.

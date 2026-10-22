@@ -9,7 +9,7 @@ import sys
 import tempfile
 import time
 
-binary, compiler, script = [str(Path(item).absolute()) for item in sys.argv[1:]]
+binary, compiler, script, linker = [str(Path(item).absolute()) for item in sys.argv[1:]]
 
 
 def execute(args, *, cwd=None, env=None, expected=0):
@@ -57,6 +57,7 @@ add_test(NAME works COMMAND sample)
         {"BUILDRAY_CMAKE_ARGS": "-DFOO=$(touch injected)"},
         {"BUILDRAY_BASELINE_REF": "--upload-pack=touch injected"},
         {"BUILDRAY_RUNS": "0"},
+        {"BUILDRAY_LINKER": "lld"},
         {"BUILDRAY_MAX_DEPENDENCY_TRIALS": "7"},
         {"BUILDRAY_DEPENDENCY_TIME_BUDGET": "60"},
         {"BUILDRAY_COMMAND": "prune-deps", "BUILDRAY_DEPENDENCY_TIME_BUDGET": "0"},
@@ -104,18 +105,20 @@ set_tests_properties(known_skip PROPERTIES SKIP_REGULAR_EXPRESSION skip)
     assert (Path(skip_fields["artifact-path"]) / "logs/baseline-tests.xml").is_file()
     cmake.write_text(before_skips)
 
-    for mode in ["profile", "pch", "deps", "prune-deps"]:
+    for mode in ["profile", "pch", "deps", "prune-deps", "clean-deps"]:
         output_file = root / (mode + "-outputs")
         extra = {"BUILDRAY_PCH_TARGET": "sample", "BUILDRAY_PCH_HEADERS": '["<vector>"]'} if mode == "pch" else {}
+        if mode == "clean-deps":
+            extra["BUILDRAY_LINKER"] = linker
         execute([sys.executable, script], env={**environment, **extra,
-                "BUILDRAY_COMMAND": mode, "BUILDRAY_RUNS": "3" if mode == "prune-deps" else "1", "GITHUB_OUTPUT": str(output_file)})
+                "BUILDRAY_COMMAND": mode, "BUILDRAY_RUNS": "3" if mode in ("prune-deps", "clean-deps") else "1", "GITHUB_OUTPUT": str(output_file)})
         result_fields = dict(line.split("=", 1) for line in output_file.read_text().splitlines())
         assert "baseline-sha" not in result_fields, "PR baseline applies only to measure"
-        key = "headers" if mode == "profile" else "dependencies" if mode == "deps" else "links" if mode == "prune-deps" else "patch"
+        key = "headers" if mode == "profile" else "dependencies" if mode == "deps" else "links" if mode in ("prune-deps", "clean-deps") else "patch"
         assert Path(result_fields[key]).is_file()
         if mode == "deps":
             assert Path(result_fields["dependency-dot"]).is_file()
-        if mode == 'prune-deps':
+        if mode in ('prune-deps', 'clean-deps'):
             assert list((Path(result_fields['artifact-path']) / 'logs').glob('*-linkers.json'))
         state = json.loads(Path(result_fields["report"]).read_text())
         assert state["status"] == "passed"

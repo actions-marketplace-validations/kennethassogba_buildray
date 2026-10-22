@@ -1,15 +1,19 @@
 name: Buildray
-description: Measure C++ builds, validate include cleanup, and check build-time regressions.
+description: Measure C++ build times and validate include and dependency cleanup.
 author: Kenneth Assogba
 branding:
   icon: clock
   color: blue
 inputs:
+  linker:
+    description: 'LLD executable for dependency cleanup; clean-deps detects it automatically.'
+    required: false
+    default: ''
   source:
     description: CMake source directory relative to the checkout.
     default: '.'
   command:
-    description: measure, optimize, headers, profile, pch, unity, deps, prune-links, or prune-deps.
+    description: measure, clean (unused includes), or clean-deps (unused libraries). Advanced commands also supported.
     default: measure
   baseline-ref:
     description: Base Git revision for measure. Empty outside PRs means a standalone measurement.
@@ -179,6 +183,7 @@ runs:
       id: run
       shell: bash
       env:
+        BUILDRAY_LINKER: ${{ inputs.linker }}
         BUILDRAY_SOURCE: ${{ inputs.source }}
         BUILDRAY_COMMAND: ${{ inputs.command }}
         BUILDRAY_BASELINE_REF: ${{ inputs.baseline-ref }}

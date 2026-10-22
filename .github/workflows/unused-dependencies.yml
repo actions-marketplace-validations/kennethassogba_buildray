@@ -3,11 +3,19 @@ name: Unused dependency corpus
 on:
   workflow_call:
     inputs:
+      project:
+        type: string
+        default: all
       incremental_only:
         type: boolean
         default: false
   workflow_dispatch:
     inputs:
+      project:
+        description: Project to evaluate.
+        type: choice
+        options: [all, xgrammar, sentencepiece, mujoco, snappy, llama]
+        default: all
       incremental_only:
         description: Keep full build and test validation; measure only incremental rebuild pairs.
         type: boolean
@@ -54,35 +62,39 @@ jobs:
             revision: 36cbf415f1c72c199e956c00fed0418f22ca53f2
             jobs: '4'
             rebuild_files: '["common/common.cpp", "src/llama-vocab.cpp"]'
-            cmake_args: '["-DBUILD_SHARED_LIBS=OFF", "-DLLAMA_BUILD_TESTS=ON", "-DLLAMA_BUILD_EXAMPLES=OFF", "-DLLAMA_BUILD_TOOLS=OFF", "-DLLAMA_BUILD_SERVER=OFF", "-DLLAMA_BUILD_APP=OFF", "-DGGML_NATIVE=OFF", "-DGGML_CUDA=OFF", "-DGGML_BACKEND_DL=OFF"]'
+            cmake_args: '["-DBUILD_SHARED_LIBS=OFF", "-DLLAMA_BUILD_TESTS=ON", "-DLLAMA_BUILD_EXAMPLES=OFF", "-DLLAMA_BUILD_TOOLS=ON", "-DLLAMA_BUILD_SERVER=ON", "-DLLAMA_BUILD_APP=OFF", "-DGGML_NATIVE=OFF", "-DGGML_CUDA=OFF", "-DGGML_BACKEND_DL=OFF"]'
     steps:
       - uses: actions/checkout@v6
+        if: inputs.project == 'all' || inputs.project == matrix.project
       - uses: actions/setup-python@v7
+        if: inputs.project == 'all' || inputs.project == matrix.project
         with:
           python-version: '3.12'
       - uses: actions/checkout@v6
+        if: inputs.project == 'all' || inputs.project == matrix.project
         with:
           repository: ${{ matrix.repository }}
           ref: ${{ matrix.revision }}
           path: fixtures/${{ matrix.project }}
           persist-credentials: false
       - name: Prepare XGrammar tests
-        if: matrix.project == 'xgrammar'
+        if: (inputs.project == 'all' || inputs.project == matrix.project) && matrix.project == 'xgrammar'
         working-directory: fixtures/xgrammar
         run: |
           git submodule update --init --depth 1 3rdparty/dlpack 3rdparty/googletest
           printf '%s\n' 'set(XGRAMMAR_BUILD_PYTHON_BINDINGS OFF)' 'set(XGRAMMAR_BUILD_CXX_TESTS ON)' > config.cmake
       - name: Prepare MuJoCo locale
-        if: matrix.project == 'mujoco'
+        if: (inputs.project == 'all' || inputs.project == matrix.project) && matrix.project == 'mujoco'
         run: sudo locale-gen de_DE.UTF-8
       - name: Prepare Snappy tests and benchmarks
-        if: matrix.project == 'snappy'
+        if: (inputs.project == 'all' || inputs.project == matrix.project) && matrix.project == 'snappy'
         working-directory: fixtures/snappy
         run: git submodule update --init --depth 1 third_party/googletest third_party/benchmark
       - name: Prepare llama.cpp Python test dependencies
-        if: matrix.project == 'llama'
+        if: (inputs.project == 'all' || inputs.project == matrix.project) && matrix.project == 'llama'
         run: python3 -m pip install jinja2 jsonschema requests
       - name: Select a common LLD toolchain for both variants
+        if: inputs.project == 'all' || inputs.project == matrix.project
         env:
           PROJECT_ARGS: ${{ matrix.cmake_args }}
         run: |
@@ -95,6 +107,7 @@ jobs:
               stream.write('UNUSED_CMAKE_ARGS=' + json.dumps(args) + '\n')
           PY
       - name: Validate and measure unused static dependencies
+        if: inputs.project == 'all' || inputs.project == matrix.project
         uses: ./
         with:
           command: prune-deps
@@ -110,7 +123,7 @@ jobs:
           cmake-args: ${{ env.UNUSED_CMAKE_ARGS }}
           artifact-name: unused-${{ matrix.project }}
       - name: Keep raw logs if validation fails or is cancelled
-        if: failure() || cancelled()
+        if: (failure() || cancelled()) && (inputs.project == 'all' || inputs.project == matrix.project)
         uses: actions/upload-artifact@v7
         with:
           name: unused-${{ matrix.project }}-incomplete-logs
