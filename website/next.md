@@ -13,7 +13,7 @@ Try a new project from **Actions → Evaluate a repository**. The [CI guide](./c
 ## Next steps
 
 1. Diagnose MuJoCo's rejected link changes using the saved before/after commands, without relaxing the identical-binary checks.
-2. Simplify the newly validated Highway patch before proposing it upstream. Its 84 removals halve the measured `vqsort.cc` rebuild time.
+2. Finish validating the compact [Highway draft](https://github.com/google/highway/pull/3509), then use the generic workflow to check new projects. Keep only cleanups with useful measured savings.
 3. Handle compiler response files safely, so projects do not need a module-scanning workaround for this search.
 
 The [dependency results](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md) separate the test project from the real-project measurements. No eligible removal means the supported search found none, not that every dependency is necessary.

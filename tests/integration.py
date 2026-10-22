@@ -180,6 +180,36 @@ with tempfile.TemporaryDirectory(prefix="buildray integration ") as directory:
             stream.write(f"set_tests_properties(works PROPERTIES {property_value})\n")
         optimize(skipped, root / (kind + "-result"), expected=1)
 
+    # Relative file links and chains resolve inside each independent copy.
+    internal = root / "internal-links"
+    project(internal)
+    (internal / "real.hpp").write_text("#pragma once\ninline int answer() { return 0; }\n")
+    (internal / "header.hpp").symlink_to("real.hpp")
+    (internal / "nested").mkdir()
+    (internal / "nested/chain.hpp").symlink_to("../header.hpp")
+    (internal / "alias").symlink_to("nested", target_is_directory=True)
+    (internal / "main file.cpp").unlink()
+    (internal / "actual.cpp").write_text('#include <vector>\n#include "alias/chain.hpp"\nint main() { return answer(); }\n')
+    (internal / "main file.cpp").symlink_to("actual.cpp")
+    internal_result = root / "internal-links-result"
+    optimize(internal, internal_result)
+    assert json.loads((internal_result / "report.json").read_text())["removed_includes"] == 1
+    assert "-#include <vector>" in (internal_result / "includes.patch").read_text()
+    run("git", "apply", "--check", str(internal_result / "includes.patch"), cwd=internal)
+    assert "#include <vector>" in (internal / "actual.cpp").read_text()
+    for variant in ["baseline", "candidate"]:
+        tree = internal_result / f"{variant}-source"
+        assert (tree / "header.hpp").readlink() == Path("real.hpp")
+        assert (tree / "nested/chain.hpp").resolve() == tree / "real.hpp"
+        assert (tree / "alias").resolve() == tree / "nested"
+        assert (tree / "main file.cpp").readlink() == Path("actual.cpp")
+        assert (tree / "real.hpp").read_text() == (internal / "real.hpp").read_text()
+    assert (internal / "header.hpp").is_symlink()
+    original_header = (internal / "real.hpp").read_text()
+    (internal_result / "candidate-source/nested/chain.hpp").write_text("changed only in candidate\n")
+    assert (internal / "real.hpp").read_text() == original_header
+    assert (internal_result / "baseline-source/real.hpp").read_text() == original_header
+
     # A symlink must not escape the isolated tree, even when it points at a
     # writable external file.
     linked = root / "linked"
@@ -189,6 +219,25 @@ with tempfile.TemporaryDirectory(prefix="buildray integration ") as directory:
     (linked / "outside.cpp").symlink_to(external)
     optimize(linked, root / "linked-result", expected=1)
     assert external.read_text() == "int main() {}\n"
+
+    # Missing files, cycles, absolute links and omitted caches cannot become inputs.
+    for kind in ["relative-external", "dangling", "cycle", "absolute-internal", "cache"]:
+        target = root / f"links-{kind}"
+        project(target)
+        if kind == "relative-external":
+            (target / "link").symlink_to("../external.cpp")
+        elif kind == "dangling":
+            (target / "link").symlink_to("missing.hpp")
+        elif kind == "cycle":
+            (target / "link").symlink_to("other")
+            (target / "other").symlink_to("link")
+        elif kind == "absolute-internal":
+            (target / "link").symlink_to(target / "main file.cpp")
+        else:
+            (target / ".cache").mkdir()
+            (target / ".cache/ignored.hpp").write_text("ignored\n")
+            (target / "link").symlink_to(".cache/ignored.hpp")
+        optimize(target, root / f"links-{kind}-result", expected=1)
 
     # Some projects (SentencePiece) create source links to fetched dependencies
     # during configure. Both copies must start before those mutations happen.

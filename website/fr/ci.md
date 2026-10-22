@@ -41,6 +41,8 @@ Le résumé du job affiche la comparaison. Ses artefacts conservent les rapports
 
 L’Action n’applique pas le patch et n’ouvre pas de PR. Les sources et les tests exécutent le code du projet : utilisez les mêmes règles de confiance que pour votre workflow de build habituel.
 
+Les liens symboliques relatifs à l’intérieur de la copie des sources sont pris en charge. Les liens absolus, les liens cassés et ceux qui sortent de la copie sont refusés.
+
 ## Évaluer un autre dépôt {#evaluate-another-repository}
 
 Dans Buildray, ouvrez **Actions → Evaluate a repository → Run workflow**, puis indiquez un dépôt public, une révision et ses options de tests CMake. Choisissez `clean-deps`, `clean` ou `measure`. Aucun fork ni nouveau fichier de workflow n’est nécessaire. Les artefacts conservent les rapports, les tests, le patch éventuel et les révisions exactes des sources.
