@@ -187,13 +187,15 @@ with tempfile.TemporaryDirectory(prefix="buildray integration ") as directory:
     (internal / "header.hpp").symlink_to("real.hpp")
     (internal / "nested").mkdir()
     (internal / "nested/chain.hpp").symlink_to("../header.hpp")
-    (internal / "main file.cpp").write_text('#include "nested/chain.hpp"\nint main() { return answer(); }\n')
+    (internal / "alias").symlink_to("nested", target_is_directory=True)
+    (internal / "main file.cpp").write_text('#include "alias/chain.hpp"\nint main() { return answer(); }\n')
     internal_result = root / "internal-links-result"
     optimize(internal, internal_result)
     for variant in ["baseline", "candidate"]:
         tree = internal_result / f"{variant}-source"
         assert (tree / "header.hpp").readlink() == Path("real.hpp")
         assert (tree / "nested/chain.hpp").resolve() == tree / "real.hpp"
+        assert (tree / "alias").resolve() == tree / "nested"
         assert (tree / "real.hpp").read_text() == (internal / "real.hpp").read_text()
     assert (internal / "header.hpp").is_symlink()
     original_header = (internal / "real.hpp").read_text()
@@ -211,8 +213,8 @@ with tempfile.TemporaryDirectory(prefix="buildray integration ") as directory:
     optimize(linked, root / "linked-result", expected=1)
     assert external.read_text() == "int main() {}\n"
 
-    # Missing files, cycles, directories and omitted caches cannot become inputs.
-    for kind in ["relative-external", "dangling", "cycle", "directory", "cache"]:
+    # Missing files, cycles, absolute links and omitted caches cannot become inputs.
+    for kind in ["relative-external", "dangling", "cycle", "absolute-internal", "cache"]:
         target = root / f"links-{kind}"
         project(target)
         if kind == "relative-external":
@@ -222,9 +224,8 @@ with tempfile.TemporaryDirectory(prefix="buildray integration ") as directory:
         elif kind == "cycle":
             (target / "link").symlink_to("other")
             (target / "other").symlink_to("link")
-        elif kind == "directory":
-            (target / "dir").mkdir()
-            (target / "link").symlink_to("dir")
+        elif kind == "absolute-internal":
+            (target / "link").symlink_to(target / "main file.cpp")
         else:
             (target / ".cache").mkdir()
             (target / ".cache/ignored.hpp").write_text("ignored\n")

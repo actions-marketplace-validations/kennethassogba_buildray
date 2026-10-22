@@ -41,7 +41,7 @@ The job summary shows the comparison. Artifacts retain reports and, for optimiza
 
 The Action does not apply patches or open PRs. Sources and tests execute project code; use the same trust boundaries as a normal build workflow.
 
-Relative symlinks to files inside the copied source tree are supported. Absolute links, directory links, broken links and links outside the copy are rejected.
+Relative symlinks inside the copied source tree are supported. Absolute links, broken links and links outside the copy are rejected.
 
 ## Evaluate another repository
 

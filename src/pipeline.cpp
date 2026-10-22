@@ -67,8 +67,8 @@ void snapshot(const fs::path& source, const fs::path& destination, const fs::pat
                 std::error_code error;
                 const auto resolved = fs::canonical(entry.path(), error);
                 if (link.is_absolute() || error || !within(resolved, root) ||
-                    !fs::is_regular_file(resolved))
-                    throw std::runtime_error("Source symlink must point to a copied file using a relative path: " +
+                    (!fs::is_regular_file(resolved) && !fs::is_directory(resolved)))
+                    throw std::runtime_error("Source symlink must point inside the copy using a relative path: " +
                                              entry.path().string());
                 links.emplace_back(target, link);
                 continue;
@@ -87,8 +87,9 @@ void snapshot(const fs::path& source, const fs::path& destination, const fs::pat
     for (const auto& [path, link] : links) {
         std::error_code error;
         const auto resolved = fs::canonical(path, error);
-        if (error || !within(resolved, destination) || !fs::is_regular_file(resolved))
-            throw std::runtime_error("Source symlink points outside the copied files: " + path.string());
+        if (error || !within(resolved, destination) ||
+            (!fs::is_regular_file(resolved) && !fs::is_directory(resolved)))
+            throw std::runtime_error("Source symlink points outside the copied tree: " + path.string());
     }
 }
 
