@@ -1,6 +1,8 @@
 name: Released Action smoke test
 
 on:
+  pull_request:
+    paths: ['.github/workflows/released-action.yml']
   workflow_dispatch:
 
 permissions:
