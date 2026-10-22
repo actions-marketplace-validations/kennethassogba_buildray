@@ -48,12 +48,12 @@ La recherche groupée retire 40 liens inutiles en un essai sur un projet de test
 | Projet | Ce qui est validé |
 | --- | --- |
 | XGrammar | Modification de GoogleMock : **34,639 → 2,367 s**, avec les 83 tests réussis. Modifier le parseur ne donne aucun gain confirmé. Le patch est déjà dans la [draft #1005](https://github.com/mlc-ai/xgrammar/pull/1005). |
-| Highway | La [PR #3502 mergée](https://github.com/google/highway/pull/3502) retire 35 liens inutiles. Avant son intégration, une modification de `vqsort.cc` mesurait **4,537 → 3,581 s**, avec 32 liens en moins, 2 784 tests réussis et les mêmes 23 exceptions. |
+| Highway | Après la [PR #3502 mergée](https://github.com/google/highway/pull/3502), 84 autres liens inutiles ont été retirés et validés sur 77 targets. Une modification de `vqsort.cc` mesure **3,405 → 1,641 s**, avec **81 → 18** liens, 2 784 tests réussis et les mêmes 23 exceptions. Le patch généré reste à simplifier avant soumission. |
 | SentencePiece | Les alias permettent d’examiner neuf liens dans six exécutables. Les bibliothèques contribuent toutes du code ; aucun retrait n’est proposé. |
 | Snappy | Le build de référence passe. Ses six liens pris en charge utilisent les bibliothèques ; aucun retrait n’est proposé. |
 | MuJoCo | Les 3 519 tests passent. Sur 236 liens éligibles, les 50 configurations essayées sont rejetées. Aucun patch ni gain n’est validé. |
 
-Le gain XGrammar concerne les modifications de GoogleMock, sans gain général démontré sur un build complet. La mesure Highway porte sur la révision testée avant le merge. [Révisions, configuration et résultats bruts](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md).
+Le gain XGrammar concerne les modifications de GoogleMock, sans gain général démontré sur un build complet. La mesure Highway porte sur une révision après le premier nettoyage ; les modifications de `targets.cc` restent sans gain démontré. [Révisions, configuration et résultats bruts](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md).
 
 ## Les limites à garder en tête {#limits-of-the-evidence}
 

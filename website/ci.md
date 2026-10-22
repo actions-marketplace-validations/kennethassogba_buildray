@@ -4,6 +4,8 @@ title: In GitHub Actions
 
 # Watch build time in CI
 
+Buildray is available on the [GitHub Marketplace](https://github.com/marketplace/actions/buildray-build-time).
+
 The GitHub Action compares a pull request with its base revision. It builds and tests both, then alternates their full-build measurements on the same runner.
 
 ## Add the workflow
@@ -38,6 +40,12 @@ The example uses a versioned release. Pin its full commit SHA if you require imm
 The job summary shows the comparison. Artifacts retain reports and, for optimization experiments, the patch. Retention defaults to 30 days. The gate fails when a slowdown exceeds the budget and noise threshold.
 
 The Action does not apply patches or open PRs. Sources and tests execute project code; use the same trust boundaries as a normal build workflow.
+
+## Evaluate another repository
+
+In Buildray's **Actions → Evaluate a repository → Run workflow**, enter a public repository, revision and CMake test options. Choose `clean-deps`, `clean` or `measure`. No fork or new workflow file is needed. Reports, tests, any patch and the exact source revisions are saved as artifacts.
+
+For dependency cleanup, add `rebuild_files`, for example `["src/model.cc"]`, to measure rebuilds after editing those files. This skips repeated clean-build timings, while still building and testing both complete variants. Use an empty list to measure clean builds. Three pairs are the default; no speedup is claimed when results are inconclusive.
 
 ## Try an optimization
 

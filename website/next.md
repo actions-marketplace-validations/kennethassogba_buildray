@@ -8,10 +8,12 @@ title: What comes next
 
 On XGrammar, removing an unused dependency avoids a roughly 32-second link after a GoogleMock source edit. The parser edit remains inconclusive. This is a targeted rebuild gain. Dependency cleanup has not yet shown a clean-build speedup on these projects.
 
+Try a new project from **Actions → Evaluate a repository**. The [CI guide](./ci#evaluate-another-repository) explains the inputs.
+
 ## Next steps
 
 1. Diagnose MuJoCo's rejected link changes using the saved before/after commands, without relaxing the identical-binary checks.
-2. Check the remaining Highway dependencies after the accepted cleanup. Redundant archive copies are now supported.
+2. Simplify the newly validated Highway patch before proposing it upstream. Its 84 removals halve the measured `vqsort.cc` rebuild time.
 3. Handle compiler response files safely, so projects do not need a module-scanning workaround for this search.
 
 The [dependency results](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md) separate the test project from the real-project measurements. No eligible removal means the supported search found none, not that every dependency is necessary.

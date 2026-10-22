@@ -8,10 +8,12 @@ title: La suite
 
 Sur XGrammar, retirer une dépendance inutilisée évite une étape de lien d’environ 32 secondes après une modification du code de GoogleMock. Modifier le parseur ne donne aucun gain confirmé. Le gain concerne cette reconstruction précise. Le nettoyage des dépendances n’a pas encore montré de gain sur un build complet de ces projets.
 
+Essayez un nouveau projet depuis **Actions → Evaluate a repository**. Le [guide CI](./ci#evaluate-another-repository) explique les entrées.
+
 ## Les prochaines étapes {#next-steps}
 
 1. Comprendre les changements de lien rejetés sur MuJoCo à partir des commandes conservées, sans assouplir les contrôles sur les binaires.
-2. Chercher les dépendances Highway restantes après le nettoyage accepté. Les copies redondantes d’archives sont désormais prises en charge.
+2. Simplifier le nouveau patch Highway validé avant de le proposer. Ses 84 retraits divisent environ par deux le rebuild mesuré de `vqsort.cc`.
 3. Prendre en charge les fichiers d’arguments du compilateur pour éviter le contournement de la détection des modules.
 
 Les [résultats du nettoyage](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md) distinguent le projet de test des mesures sur les vrais projets. Ne trouver aucun retrait éligible ne signifie pas que toutes les dépendances sont nécessaires.

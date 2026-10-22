@@ -4,6 +4,8 @@ title: Dans GitHub Actions
 
 # Surveiller le temps de build en CI {#watch-build-time-in-ci}
 
+Buildray est disponible sur le [GitHub Marketplace](https://github.com/marketplace/actions/buildray-build-time).
+
 La GitHub Action compare une pull request à sa révision de base. Elle construit et teste les deux versions, puis mesure leurs builds complets en alternance sur le même runner.
 
 ## Ajouter le workflow {#add-the-workflow}
@@ -38,6 +40,12 @@ Cet exemple utilise une version publiée. Pour une référence immuable, utilise
 Le résumé du job affiche la comparaison. Ses artefacts conservent les rapports et, pour une expérience d’optimisation, le patch. La rétention est de 30 jours par défaut. Le contrôle échoue si un ralentissement dépasse le budget et le seuil de bruit.
 
 L’Action n’applique pas le patch et n’ouvre pas de PR. Les sources et les tests exécutent le code du projet : utilisez les mêmes règles de confiance que pour votre workflow de build habituel.
+
+## Évaluer un autre dépôt {#evaluate-another-repository}
+
+Dans Buildray, ouvrez **Actions → Evaluate a repository → Run workflow**, puis indiquez un dépôt public, une révision et ses options de tests CMake. Choisissez `clean-deps`, `clean` ou `measure`. Aucun fork ni nouveau fichier de workflow n’est nécessaire. Les artefacts conservent les rapports, les tests, le patch éventuel et les révisions exactes des sources.
+
+Pour le nettoyage des dépendances, ajoutez `rebuild_files`, par exemple `["src/model.cc"]`, afin de mesurer les rebuilds après modification de ces fichiers. Les mesures répétées des builds complets sont alors omises ; les deux variantes restent entièrement compilées et testées. Laissez une liste vide pour mesurer les builds complets. Trois paires sont mesurées par défaut ; un résultat incertain ne compte pas comme un gain.
 
 ## Essayer une optimisation {#try-an-optimization}
 

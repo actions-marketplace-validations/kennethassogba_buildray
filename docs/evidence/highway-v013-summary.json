@@ -1,0 +1,79 @@
+{
+  "workflow": "https://github.com/kennethassogba/buildray/actions/runs/39804757110",
+  "source_repository": "google/highway",
+  "source_revision": "8fd66948f4555b022328b42120dbce9315847493",
+  "buildray_revision": "65a5ded169687b618a9cb04cecadf4bde1040083",
+  "report_sha256": "28e6d9c9ccfd9cb475a41f64e81c0887df870417498a8708c50a59a0d183f8c2",
+  "status": "passed",
+  "baseline_tests_passed": 2784,
+  "candidate_tests_passed": 2784,
+  "unchanged_skips": 23,
+  "eligible_links": 537,
+  "removed_links": 84,
+  "affected_targets": 77,
+  "search": {
+    "budget_exhausted": false,
+    "cache_hits": 0,
+    "configurations": 2,
+    "elapsed_seconds": 23.024227897,
+    "final_verifications": 1,
+    "profiled_links": 126,
+    "time_budget_seconds": 1200,
+    "trial_limit": 256
+  },
+  "jobs": 4,
+  "runs": 3,
+  "compiler": "Ubuntu clang version 22.1.8 (++20260714014902+ca7933e47d3a-1~exp1~20260714135019.80)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-22/bin\n",
+  "cmake_args": [
+    "-DHWY_ENABLE_TESTS=ON",
+    "-DHWY_ENABLE_EXAMPLES=ON",
+    "-DHWY_ENABLE_CONTRIB=ON",
+    "-DHWY_TEST_STANDALONE=OFF",
+    "-DBUILD_SHARED_LIBS=OFF",
+    "-DCMAKE_EXE_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld",
+    "-DCMAKE_SHARED_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld",
+    "-DCMAKE_MODULE_LINKER_FLAGS=--ld-path=/usr/lib/llvm-21/bin/ld.lld"
+  ],
+  "patch_validated": true,
+  "clean_builds_measured": false,
+  "patch_bytes": 31980,
+  "upstream_status": "Generated patch still needs a compact equivalent and validation before submission.",
+  "scenarios": [
+    {
+      "file": "hwy/contrib/sort/vqsort.cc",
+      "result": "improved",
+      "before_seconds": 3.405093576,
+      "after_seconds": 1.641280272,
+      "before_links": 81,
+      "after_links": 18,
+      "baseline_samples": [
+        3.402900871,
+        3.423119525,
+        3.405093576
+      ],
+      "candidate_samples": [
+        1.643645715,
+        1.641280272,
+        1.636903319
+      ]
+    },
+    {
+      "file": "hwy/targets.cc",
+      "result": "inconclusive",
+      "before_seconds": 4.492564646,
+      "after_seconds": 4.494993481,
+      "before_links": 126,
+      "after_links": 125,
+      "baseline_samples": [
+        4.445490848,
+        4.492564646,
+        4.596765441
+      ],
+      "candidate_samples": [
+        4.386542381,
+        4.495232782,
+        4.494993481
+      ]
+    }
+  ]
+}

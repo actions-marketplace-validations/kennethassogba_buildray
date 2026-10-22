@@ -1,0 +1,107 @@
+name: Evaluate a repository
+run-name: Evaluate ${{ inputs.repository || github.repository }} (${{ inputs.command || 'clean-deps' }})
+
+on:
+  pull_request:
+    paths: ['.github/workflows/evaluate-repo.yml']
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: Public GitHub repository (owner/name).
+        required: true
+        type: string
+      revision:
+        description: Commit SHA, tag or branch to evaluate. The resolved SHA is recorded.
+        required: true
+        type: string
+      source:
+        description: Directory containing CMakeLists.txt, relative to that repository.
+        type: string
+        default: '.'
+      command:
+        description: Measurement or cleanup to try.
+        type: choice
+        options: [clean-deps, clean, measure]
+        default: clean-deps
+      cmake_args:
+        description: JSON array of CMake options, including the project's test option.
+        type: string
+        default: '["-DBUILD_TESTING=ON"]'
+      rebuild_files:
+        description: For clean-deps, JSON array of source-relative files to edit separately.
+        type: string
+        default: '[]'
+      runs:
+        description: Measurement pairs per scenario.
+        type: choice
+        options: ['3', '5']
+        default: '3'
+      jobs:
+        description: Compiler jobs for both variants.
+        type: choice
+        options: ['2', '4']
+        default: '4'
+      allow_baseline_skips:
+        description: Permit existing skipped tests only if they stay identical.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CTEST_PARALLEL_LEVEL: '2'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.revision || github.sha }}
+          path: project
+          submodules: recursive
+          persist-credentials: false
+      - name: Record the exact revisions
+        env:
+          PROJECT_REPOSITORY: ${{ inputs.repository || github.repository }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, subprocess
+          from pathlib import Path
+          repository = os.environ['PROJECT_REPOSITORY']
+          if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository):
+              raise SystemExit('Expected a GitHub repository as owner/name')
+          def sha(directory):
+              return subprocess.check_output(['git', '-C', directory, 'rev-parse', 'HEAD'], text=True).strip()
+          context = {'repository': repository, 'revision': sha('project'), 'buildray_revision': sha('.')}
+          Path('evaluation-source.json').write_text(json.dumps(context, indent=2) + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as stream:
+              stream.write(f"Evaluating [{repository}](https://github.com/{repository}/tree/{context['revision']}) at `{context['revision']}` with Buildray `{context['buildray_revision']}`.\n\n")
+          PY
+      - name: Build, test and measure
+        uses: ./
+        with:
+          command: ${{ inputs.command || 'clean-deps' }}
+          source: project/${{ inputs.source || 'tests/fixtures/action' }}
+          baseline-ref: ''
+          cmake-args: ${{ inputs.cmake_args || '["-DBUILD_TESTING=ON"]' }}
+          rebuild-files: ${{ inputs.rebuild_files || '[]' }}
+          incremental-only: ${{ inputs.command == 'clean-deps' && inputs.rebuild_files != '' && inputs.rebuild_files != '[]' }}
+          runs: ${{ inputs.runs || '3' }}
+          jobs: ${{ inputs.jobs || '2' }}
+          allow-baseline-skips: ${{ inputs.allow_baseline_skips || false }}
+          max-dependency-trials: '256'
+          dependency-time-budget: '900'
+          artifact-name: evaluation
+      - name: Keep the source revisions
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: evaluation-source
+          path: evaluation-source.json
+          if-no-files-found: warn
