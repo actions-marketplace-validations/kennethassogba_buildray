@@ -175,7 +175,7 @@ std::map<fs::path, std::pair<unsigned long long, unsigned long long>> archive_st
         const auto members = count(line.substr(0, first)), extracted = count(line.substr(first + 1, second - first - 1));
         const auto path = absolute_path(cwd / line.substr(second + 1));
         if (extracted > members) throw std::runtime_error("Invalid archive statistics");
-        // Drivers commonly repeat libgcc.a. Every occurrence must have zero extractions.
+        // Keep the maximum across repeated archives for zero-extraction screening.
         auto& entry = result[path];
         entry.first = std::max(entry.first, members);
         entry.second = std::max(entry.second, extracted);
@@ -338,10 +338,15 @@ json::Object verify_unused_link_inputs(const fs::path& bs, const fs::path& bb,
         for (const auto& arg : removed) {
             const auto path = absolute_path(cwd / baseline_path(arg, bs, bb));
             const auto* item = stats.getObject(normalize(path.string(), bs, bb));
-            if (!item || item->getInteger("extracted") != 0)
+            const bool retained = std::ranges::any_of(found->second, [&](const std::string& remaining) {
+                return remaining.ends_with(".a") &&
+                    absolute_path(cwd / baseline_path(remaining, bs, bb)) == path;
+            });
+            if (!item || (item->getInteger("extracted") != 0 && !retained))
                 throw std::runtime_error("Removed archive contributed objects or lacks extraction evidence: " + arg);
-            archives.push_back(json::Object{{"archive", arg}, {"members", *item->getInteger("members")}, {"extracted", 0}});
-            removed_paths.insert(normalize(path.string(), bs, bb));
+            archives.push_back(json::Object{{"archive", arg}, {"members", *item->getInteger("members")},
+                {"extracted", *item->getInteger("extracted")}, {"retained_copy", retained}});
+            if (!retained) removed_paths.insert(normalize(path.string(), bs, bb));
         }
         auto candidate = found->second;
         for (auto& arg : candidate) arg = baseline_path(std::move(arg), bs, bb);

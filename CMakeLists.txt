@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.30)
-project(buildray VERSION 0.12.0 LANGUAGES CXX)
+project(buildray VERSION 0.13.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,7 +33,7 @@ if(BUILDRAY_ENABLE_SANITIZERS)
     target_link_options(buildray_core PUBLIC -fsanitize=address,undefined)
 endif()
 
-add_executable(buildray src/main.cpp)
+add_executable(buildray src/main.cpp src/cli.cpp)
 target_link_libraries(buildray PRIVATE buildray_core)
 target_compile_options(buildray PRIVATE -Wall -Wextra -Wpedantic)
 find_path(BUILDRAY_CLANG_INCLUDE_DIR clang/Tooling/Tooling.h HINTS ${LLVM_INCLUDE_DIRS} REQUIRED)
@@ -68,9 +68,10 @@ if(BUILD_TESTING)
     set_tests_properties(integration PROPERTIES TIMEOUT 180)
     add_test(NAME comparison COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/comparison_cli.py $<TARGET_FILE:buildray> ${BUILDRAY_CLANGXX})
+    find_program(BUILDRAY_LLD NAMES ld.lld-21 ld.lld-20 ld.lld REQUIRED)
     add_test(NAME action COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/action_cli.py $<TARGET_FILE:buildray>
-        ${BUILDRAY_CLANGXX} ${CMAKE_CURRENT_SOURCE_DIR}/action/run.py)
+        ${BUILDRAY_CLANGXX} ${CMAKE_CURRENT_SOURCE_DIR}/action/run.py ${BUILDRAY_LLD})
     set_tests_properties(comparison action PROPERTIES TIMEOUT 180)
     add_test(NAME profiling COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/profiling_cli.py $<TARGET_FILE:buildray> ${BUILDRAY_CLANGXX})

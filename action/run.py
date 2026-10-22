@@ -231,7 +231,13 @@ def main():
     source = (workspace / os.environ.get("BUILDRAY_SOURCE", ".")).resolve()
     if not source.is_relative_to(workspace) or not (source / "CMakeLists.txt").is_file():
         raise ValueError("Source must be a CMake tree inside GITHUB_WORKSPACE")
-    mode = os.environ.get("BUILDRAY_COMMAND", "measure")
+    requested_mode = os.environ.get("BUILDRAY_COMMAND", "measure")
+    mode = {"clean": "optimize", "clean-deps": "prune-deps"}.get(requested_mode, requested_mode)
+    linker = os.environ.get("BUILDRAY_LINKER", "")
+    if requested_mode == "clean-deps" and not linker:
+        linker = "lld"
+    if linker and mode != "prune-deps":
+        raise ValueError("linker requires command clean-deps or prune-deps")
     if mode not in ("measure", "optimize", "headers", "profile", "pch", "deps", "prune-links", "prune-deps", "unity"):
         raise ValueError("command must be measure, optimize, headers, profile, pch, deps, prune-links, prune-deps or unity")
     fail_on_cycles = boolean("BUILDRAY_FAIL_ON_CYCLES", "false")
@@ -327,6 +333,8 @@ def main():
             command.extend(["--job-levels", ','.join(str(j) for j in job_levels)])
         else:
             command.extend(["--jobs", str(jobs)])
+        if linker:
+            command.extend(["--linker", linker])
         for path in rebuild_files:
             command.extend(["--rebuild-file", path])
         if incremental_only:

@@ -122,7 +122,9 @@ json::Object measurement_context(const Options& options, const fs::path& build) 
     for (const auto& [key, value] : cache) {
         if (key.starts_with("CMAKE_CXX_FLAGS") || key.starts_with("CMAKE_C_FLAGS") ||
             key.starts_with("CMAKE_EXE_LINKER_FLAGS") ||
-            key.starts_with("CMAKE_SHARED_LINKER_FLAGS") || key == "CMAKE_BUILD_TYPE" ||
+            key.starts_with("CMAKE_SHARED_LINKER_FLAGS") || key.starts_with("CMAKE_MODULE_LINKER_FLAGS") ||
+            key == "CMAKE_LINKER_TYPE" || key.starts_with("CMAKE_C_USING_LINKER_") ||
+            key.starts_with("CMAKE_CXX_USING_LINKER_") || key == "CMAKE_BUILD_TYPE" ||
             key == "CMAKE_PROJECT_NAME")
             flags[key] = comparable_flags(value);
     }

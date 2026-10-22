@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           repository: google/highway
-          ref: 1693ca7926ed12c5520623564e465cff97d93374
+          ref: 8fd66948f4555b022328b42120dbce9315847493
           path: fixtures/highway
           persist-credentials: false
       - name: Install build tools and Highway's tested Clang version
@@ -41,6 +41,7 @@ jobs:
           incremental-only: 'true'
           allow-baseline-skips: 'true'
           dependency-time-budget: '1200'
+          max-dependency-trials: '256'
           rebuild-files: '["hwy/contrib/sort/vqsort.cc", "hwy/targets.cc"]'
           cmake-args: >-
             ["-DHWY_ENABLE_TESTS=ON", "-DHWY_ENABLE_EXAMPLES=ON",

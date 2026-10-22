@@ -49,6 +49,8 @@ Sur XGrammar, retirer le lien inutilisé vers `gmock` évite environ 32 secondes
 
 Sur Highway, les variables font passer la couverture de 17 à 572 liens éligibles. Buildray valide 35 retraits sur 35 programmes, avec 2 784 tests réussis et les mêmes 23 tests ignorés à chaque étape. Modifier `vqsort.cc` prend désormais 4,537 → 3,581 s, soit un gain de 21,07 %, avec 32 liens de moins dans chaque paire. Modifier `targets.cc` reste non concluant à 4,637 → 4,626 s. La recherche atteint sa limite de 64 essais : le patch validé reste un sous-ensemble. Les builds complets ne sont pas à nouveau chronométrés. [Run et preuves](https://github.com/kennethassogba/buildray/actions/runs/39323921286).
 
+La mesure du 22 octobre confirme le patch XGrammar existant : **34,639 → 2,367 s** après une modification de GoogleMock, avec les 83 tests réussis. Modifier le parseur ne donne aucun gain confirmé. Snappy passe son build de référence, mais ses six liens pris en charge utilisent les bibliothèques ; les alias bloquent encore SentencePiece. Ces essais n’ont produit aucune PR supplémentaire. [Rapports et configuration](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md#22-october-rerun).
+
 ## Les limites à garder en tête {#limits-of-the-evidence}
 
 Les tests couvrent la configuration fournie. Ils ne remplacent pas la validation des autres plateformes et des consommateurs d’une bibliothèque. Trois paires et un seuil de variation restent une méthode de tri, pas une étude statistique.

@@ -3,11 +3,19 @@ name: Unused dependency corpus
 on:
   workflow_call:
     inputs:
+      project:
+        type: string
+        default: all
       incremental_only:
         type: boolean
         default: false
   workflow_dispatch:
     inputs:
+      project:
+        description: Project to evaluate.
+        type: choice
+        options: [all, xgrammar, sentencepiece, mujoco, snappy]
+        default: all
       incremental_only:
         description: Keep full build and test validation; measure only incremental rebuild pairs.
         type: boolean
@@ -41,29 +49,43 @@ jobs:
             repository: google-deepmind/mujoco
             revision: 651bae11c3c38efe483f033b4b7e869e7ce3f4ec
             jobs: '4'
-            rebuild_files: '["src/user/user_model.cc"]'
-            cmake_args: '["-DMUJOCO_BUILD_EXAMPLES=OFF", "-DMUJOCO_BUILD_SIMULATE=OFF", "-DMUJOCO_BUILD_TESTS=ON", "-DMUJOCO_TEST_PYTHON_UTIL=OFF"]'
+            rebuild_files: '["test/compare_model.cc", "test/fixture.cc"]'
+            cmake_args: '["-DMUJOCO_BUILD_EXAMPLES=OFF", "-DMUJOCO_BUILD_SIMULATE=OFF", "-DMUJOCO_BUILD_TESTS=ON", "-DMUJOCO_TEST_PYTHON_UTIL=OFF", "-DCMAKE_CXX_SCAN_FOR_MODULES=OFF", "-DCMAKE_LINK_DEPENDS_USE_LINKER=OFF"]'
+          - project: snappy
+            repository: google/snappy
+            revision: 9c28114a38866f6deeaa826db918293bc28ae410
+            jobs: '4'
+            rebuild_files: '["snappy.cc", "snappy-test.cc"]'
+            cmake_args: '["-DBUILD_SHARED_LIBS=OFF", "-DSNAPPY_BUILD_TESTS=ON", "-DSNAPPY_BUILD_BENCHMARKS=ON"]'
     steps:
       - uses: actions/checkout@v6
+        if: inputs.project == 'all' || inputs.project == matrix.project
       - uses: actions/setup-python@v7
+        if: inputs.project == 'all' || inputs.project == matrix.project
         with:
           python-version: '3.12'
       - uses: actions/checkout@v6
+        if: inputs.project == 'all' || inputs.project == matrix.project
         with:
           repository: ${{ matrix.repository }}
           ref: ${{ matrix.revision }}
           path: fixtures/${{ matrix.project }}
           persist-credentials: false
       - name: Prepare XGrammar tests
-        if: matrix.project == 'xgrammar'
+        if: (inputs.project == 'all' || inputs.project == matrix.project) && matrix.project == 'xgrammar'
         working-directory: fixtures/xgrammar
         run: |
           git submodule update --init --depth 1 3rdparty/dlpack 3rdparty/googletest
           printf '%s\n' 'set(XGRAMMAR_BUILD_PYTHON_BINDINGS OFF)' 'set(XGRAMMAR_BUILD_CXX_TESTS ON)' > config.cmake
       - name: Prepare MuJoCo locale
-        if: matrix.project == 'mujoco'
+        if: (inputs.project == 'all' || inputs.project == matrix.project) && matrix.project == 'mujoco'
         run: sudo locale-gen de_DE.UTF-8
+      - name: Prepare Snappy tests and benchmarks
+        if: (inputs.project == 'all' || inputs.project == matrix.project) && matrix.project == 'snappy'
+        working-directory: fixtures/snappy
+        run: git submodule update --init --depth 1 third_party/googletest third_party/benchmark
       - name: Select a common LLD toolchain for both variants
+        if: inputs.project == 'all' || inputs.project == matrix.project
         env:
           PROJECT_ARGS: ${{ matrix.cmake_args }}
         run: |
@@ -76,6 +98,7 @@ jobs:
               stream.write('UNUSED_CMAKE_ARGS=' + json.dumps(args) + '\n')
           PY
       - name: Validate and measure unused static dependencies
+        if: inputs.project == 'all' || inputs.project == matrix.project
         uses: ./
         with:
           command: prune-deps
@@ -84,11 +107,14 @@ jobs:
           jobs: ${{ matrix.jobs }}
           rebuild-files: ${{ matrix.rebuild_files }}
           incremental-only: ${{ inputs.incremental_only }}
+          allow-baseline-skips: 'true'
+          max-dependency-trials: '128'
+          dependency-time-budget: '1800'
           exclude-paths: '["3rdparty", "third_party"]'
           cmake-args: ${{ env.UNUSED_CMAKE_ARGS }}
           artifact-name: unused-${{ matrix.project }}
       - name: Keep raw logs if validation fails or is cancelled
-        if: failure() || cancelled()
+        if: (failure() || cancelled()) && (inputs.project == 'all' || inputs.project == matrix.project)
         uses: actions/upload-artifact@v7
         with:
           name: unused-${{ matrix.project }}-incomplete-logs

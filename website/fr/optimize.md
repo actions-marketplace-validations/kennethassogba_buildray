@@ -18,13 +18,13 @@ buildray profile --source /chemin/du/projet \
 ## Nettoyer les includes {#clean-up-includes}
 
 ```bash
-buildray optimize --source /chemin/du/projet --runs 3 --jobs 2
+buildray clean /chemin/du/projet --runs 3 --jobs 2
 buildray headers --source /chemin/du/projet \
   --forward-declarations --header-path src \
   --exclude third_party --runs 3 --jobs 2
 ```
 
-`optimize` essaie de supprimer les includes inutiles dans les sources C++. `headers` travaille sur les headers observés ; son option `--forward-declarations` essaie aussi des déclarations anticipées. L’analyse utilise les commandes de compilation réelles. Elle ne constitue pas un audit de toutes les règles de style de clang-tidy.
+`clean` (anciennement `optimize`) essaie de supprimer les includes inutiles dans les sources C++. `headers` travaille sur les headers observés ; son option `--forward-declarations` essaie aussi des déclarations anticipées. L’analyse utilise les commandes de compilation réelles. Elle ne constitue pas un audit de toutes les règles de style de clang-tidy.
 
 Les chemins exclus restent compilés et testés, mais leur contenu n’est pas modifié. Les fichiers générés ou téléchargés pendant la configuration sont également exclus des modifications.
 
@@ -59,6 +59,8 @@ buildray prune-links --source /chemin/du/projet --runs 3 --jobs 2
 
 `prune-deps` vérifie une fois par programme quelles archives sont utilisées, puis essaie de retirer ensemble les bibliothèques statiques privées éligibles. Il divise les groupes qui échouent et conserve les retraits acceptés dans chaque essai suivant. Les commandes de compilation doivent rester identiques, et le lien rejoué doit produire les mêmes binaires avec les mêmes objets. Le patch combiné doit aussi passer le build complet et les tests.
 
+CMake peut aussi retirer une copie redondante d’une bibliothèque qui reste liée. Buildray ne l’accepte que si le binaire obtenu est identique ; toutes les sources de cette bibliothèque restent compilées.
+
 Les noms de cibles et les listes de bibliothèques peuvent utiliser des variables CMake, y compris dans des boucles et des fonctions. Le patch ne change que les cibles et les valeurs de listes testées. Les autres valeurs conservent la commande d’origine, et les définitions des variables partagées restent intactes.
 
 Ce mode demande ELF LLD, choisi explicitement pour les deux versions. Si une bibliothèque fournit seulement des headers ou des paramètres de compilation, le patch peut les conserver tout en retirant le lien. Ajoutez `--rebuild-file` pour vérifier si une modification déclenche moins de liens. La [référence de la commande](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies.md) donne la configuration et les limites.
@@ -79,3 +81,5 @@ git apply /chemin/du/run/includes.patch
 ```
 
 Relisez les modifications et testez vos autres configurations avant de les intégrer. Les [références techniques](https://github.com/kennethassogba/buildray/tree/main/docs) détaillent les règles de chaque commande.
+
+`buildray clean-deps .` lance cette recherche avec LLD pour les deux versions. `--linker /chemin/vers/ld.lld` choisit son exécutable. L’ancien nom `prune-deps` conserve le linker configuré, sauf si `--linker` est fourni.

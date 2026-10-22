@@ -29,8 +29,7 @@ Ajoutez `$HOME/.local/bin` à votre `PATH` si nécessaire. L’installation plac
 ## Mesurer votre projet {#measure-your-project}
 
 ```bash
-buildray measure --source /chemin/du/projet \
-  --compiler clang++-21 --runs 5 --jobs 2 \
+buildray measure /chemin/du/projet --jobs 2 \
   --work-dir /tmp/ma-mesure-buildray \
   -- -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
 ```
@@ -38,6 +37,8 @@ buildray measure --source /chemin/du/projet \
 Le répertoire de travail doit être nouveau. Remplacez `BUILD_TESTING` par l’option de tests de votre projet si elle porte un autre nom. Les arguments après `--` sont transmis à CMake.
 
 `--jobs 2` limite à deux le nombre de tâches de build simultanées. Gardez la même valeur pour comparer deux versions. Fermez les autres tâches lourdes pendant la mesure.
+
+Sans chemin, Buildray utilise le répertoire courant. Clang et clang-tidy sont détectés automatiquement. `buildray clean .` nettoie les includes ; `buildray clean-deps .` nettoie les dépendances et choisit LLD pour les deux builds. `buildray --help` affiche les commandes courantes, `--help-all` les options avancées.
 
 ## Ouvrir le rapport {#open-the-report}
 

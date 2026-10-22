@@ -1,6 +1,7 @@
 """Unused archives: real LLD extraction, identical ELF replay, coverage and rejection cases."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -24,6 +25,10 @@ def digest(tree):
 
 with tempfile.TemporaryDirectory(prefix='buildray unused ') as folder:
     root = Path(folder)
+    tools = root / "tool bin's"
+    tools.mkdir()
+    for name in ['ld.lld', 'ld.lld-20', 'ld.lld-21', 'ld.lld-22']:
+        (tools / name).symlink_to(Path(linker).absolute())
     source = root / 'source tree'
     source.mkdir()
     (source / 'main.cpp').write_text('extern "C" int part(void); int main() { return part(); }\n')
@@ -43,9 +48,16 @@ add_test(NAME works COMMAND sample)
     def invoke(label, *args, expected=0):
         work = root / label
         before = digest(source)
-        run(binary, 'prune-deps', '--source', source, '--work-dir', work,
-            '--compiler', compiler, '--runs', 3, '--jobs', 2, *args,
-            '--', f'-DCMAKE_EXE_LINKER_FLAGS=--ld-path={linker}', expected=expected)
+        if label == 'unused':
+            # The public command selects LLD without replacing project linker flags.
+            run(binary, 'clean-deps', source, '--work-dir', work,
+                '--compiler', compiler, '--runs', 3, '--jobs', 2, *args,
+                '--', '-DCMAKE_EXE_LINKER_FLAGS=-Wl,--build-id=sha1', expected=expected,
+                env={**os.environ, 'PATH': str(tools) + os.pathsep + os.environ['PATH']})
+        else:
+            run(binary, 'prune-deps', '--source', source, '--work-dir', work,
+                '--compiler', compiler, '--runs', 3, '--jobs', 2, *args,
+                '--', f'-DCMAKE_EXE_LINKER_FLAGS=--ld-path={linker}', expected=expected)
         assert before == digest(source), 'Original project was modified'
         return work, json.loads((work / 'report.json').read_text())
 
@@ -75,6 +87,33 @@ add_test(NAME works COMMAND sample)
     run('cmake', '-S', source, '-B', root / 'applied', '-G', 'Ninja', f'-DCMAKE_CXX_COMPILER={compiler}')
     run('cmake', '--build', root / 'applied', '--parallel', 2)
     run('ctest', '--test-dir', root / 'applied', '--output-on-failure')
+
+    # CMake may drop a redundant copy of a used archive as a side effect of
+    # removing an unused dependency. The remaining copy must still link it.
+    saved_main = (source / 'main.cpp').read_text()
+    (source / 'main.cpp').write_text('int used(); int main() { return used(); }\n')
+    (source / 'used.cpp').write_text('int used() { return 0; }\n')
+    cmake.write_text('''cmake_minimum_required(VERSION 3.18)
+project(duplicate_archive LANGUAGES CXX)
+add_library(used STATIC used.cpp)
+add_library(dead STATIC EXCLUDE_FROM_ALL dead.cpp)
+target_link_libraries(dead INTERFACE used)
+add_executable(sample main.cpp)
+target_link_libraries(sample PRIVATE used dead)
+enable_testing()
+add_test(NAME works COMMAND sample)
+''')
+    _, duplicate = invoke('retained-used-copy', '--target', 'sample', '--dependency', 'dead')
+    assert duplicate['patch_validated']
+    changed = duplicate['link_evidence']['changed_links']
+    assert len(changed) == 1 and changed[0]['identical_elf']
+    removed = changed[0]['removed_archives']
+    assert any(a['archive'].endswith('libused.a') and a['retained_copy']
+               and a['extracted'] > 0 for a in removed), removed
+    assert any(a['archive'].endswith('libdead.a') and not a['retained_copy']
+               and a['extracted'] == 0 for a in removed), removed
+    (source / 'main.cpp').write_text(saved_main)
+    (source / 'used.cpp').unlink()
 
     def rejected(label, addition='', replacement=None, reason=None):
         cmake.write_text((replacement or original) + addition)

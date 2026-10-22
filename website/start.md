@@ -29,8 +29,7 @@ Add `$HOME/.local/bin` to your `PATH` if needed. Keep the installed `buildray` a
 ## Measure your project
 
 ```bash
-buildray measure --source /path/to/project \
-  --compiler clang++-21 --runs 5 --jobs 2 \
+buildray measure /path/to/project --jobs 2 \
   --work-dir /tmp/my-buildray-measurement \
   -- -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
 ```
@@ -38,6 +37,8 @@ buildray measure --source /path/to/project \
 The work directory must be new. Replace `BUILD_TESTING` with your project's test option if it has a different name. Arguments after `--` go to CMake.
 
 `--jobs 2` allows two build tasks at a time. Keep this value fixed when comparing versions, and avoid other heavy work during the measurement.
+
+The directory defaults to the current one. Buildray detects Clang and clang-tidy. Use `buildray clean .` for unused includes or `buildray clean-deps .` for unused library dependencies; the latter also selects LLD for both builds. `buildray --help` shows common commands, and `--help-all` lists advanced options.
 
 ## Open the report
 

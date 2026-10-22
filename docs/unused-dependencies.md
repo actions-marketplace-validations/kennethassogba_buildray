@@ -80,8 +80,9 @@ Each trial must pass checks 1–4. The final combined patch must pass all five:
 1. The compiler command inventory stays identical, after normalizing the two
    isolated directory paths. CMake relationships change only as expected.
 2. Link arguments only lose explicit `.a` inputs. Other arguments keep their
-   order and values. LLD must report zero extracted objects from every archive
-   removed from every affected link.
+   order and values. LLD must report zero extracted objects from an archive
+   removed entirely. A redundant copy may disappear if the same archive remains
+   linked; the binary must still match byte for byte.
 3. Replaying both links with the same baseline object files produces
    byte-identical ELF binaries. These analysis replays are outside timings.
 4. Active compilations can disappear only for the removed archive targets.
@@ -151,3 +152,5 @@ as the CLI. The `archive-profile` output points to retained baseline evidence. T
 Action installs LLD with its LLVM tools. Select it explicitly in `cmake-args`
 as above. The [corpus workflow](../.github/workflows/unused-dependencies.yml)
 shows the complete configuration for XGrammar, SentencePiece and MuJoCo.
+
+The short form is `buildray clean-deps [DIR]`. It detects Clang and selects LLD for both variants; `--linker /path/to/ld.lld` overrides the executable. The original `prune-deps` command retains its configured-linker behavior. Both forms accept `--source DIR`. CMake linker-selection overrides cannot be combined with `--linker`.

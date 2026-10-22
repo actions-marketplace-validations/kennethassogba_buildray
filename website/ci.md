@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: kennethassogba/buildray@42ad4e2bbf88e162fdfb4604619a48e80267d7cb
+      - uses: kennethassogba/buildray@v0.13.0
         with:
           source: .
           cmake-args: '["-DBUILD_TESTING=ON"]'
@@ -31,7 +31,7 @@ jobs:
           max-regression-percent: '5'
 ```
 
-The example pins a Buildray revision so updates are explicit. Adjust the project's CMake test option. The Action installs its tools on Ubuntu 24.04 and builds the CLI; preparation is outside the compared timings. It works directly from the repository without a Marketplace release.
+The example uses a versioned release. Pin its full commit SHA if you require immutable dependencies. Adjust the project's CMake test option. The Action installs its tools on Ubuntu 24.04 and builds the CLI; preparation is outside the compared timings. It also works directly from the repository.
 
 ## Find the results
 
@@ -44,10 +44,12 @@ The Action does not apply patches or open PRs. Sources and tests execute project
 For example, add these inputs to the Buildray step's `with` block:
 
 ```yaml
-command: optimize
+command: clean-deps
 runs: '3'
 jobs: '2'
 ```
+
+`command: clean` removes unused includes; `command: clean-deps` searches unused private static-library links and selects LLD automatically. The old command names still work.
 
 Optimization experiments compare the project with its patched copy. They ignore `baseline-ref`, which is used for revision comparisons.
 
