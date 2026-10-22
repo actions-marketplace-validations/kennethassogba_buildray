@@ -46,6 +46,13 @@ changes, 18 for changed compiler commands or usage requirements, and 22 for
 other link-command changes. The budget is not exhausted. No candidate patch or
 before/after timing is validated.
 
+llama.cpp `36cbf415` was also tried. Its default target forces Unity; a common
+non-Unity profile then fails to compile `src/models/clef.cpp` because `<algorithm>`
+is missing. No cleanup or timing result was accepted. It is excluded from the
+corpus: its [contribution policy](https://github.com/ggml-org/llama.cpp/blob/master/AGENTS.md)
+prohibits automated PR submissions. The diagnostic is retained in
+[the failed run](https://github.com/kennethassogba/buildray/actions/runs/39809070095).
+
 ## SentencePiece with aliases
 
 The alias implementation was checked locally on SentencePiece v0.2.2
