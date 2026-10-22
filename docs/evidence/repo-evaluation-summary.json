@@ -47,7 +47,30 @@
       "after_seconds": 3.542218147,
       "result": "inconclusive"
     },
-    "buildray_revision": "80caaa3b5ab0594b1cc56d9bd517428528907bf5"
+    "buildray_revision": "80caaa3b5ab0594b1cc56d9bd517428528907bf5",
+    "additional_probe": {
+      "workflow": "https://github.com/kennethassogba/buildray/actions/runs/39835850956",
+      "buildray_revision": "6aef44d820d03e33be23ef0cd423753d543bbc3b",
+      "report_sha256": "51c4478d95f0c66d95363b913f0602c01433f35483c917b3cc4159cb2b72358a",
+      "file": "src/benchmark_main.cc",
+      "result": "improved",
+      "before_seconds": 1.072130564,
+      "after_seconds": 0.780596996,
+      "before_links": 20,
+      "after_links": 2,
+      "baseline_samples": [
+        1.073485211,
+        1.072130564,
+        1.06143871
+      ],
+      "candidate_samples": [
+        0.780596996,
+        0.771640104,
+        0.790061285
+      ],
+      "tests_passed_per_variant": 87,
+      "decision": "No upstream PR: the measured saving is only 0.292 seconds."
+    }
   },
   {
     "repository": "google/draco",

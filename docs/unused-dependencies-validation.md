@@ -23,7 +23,7 @@ The `Evaluate a repository` workflow was exercised on three pinned projects:
 | Project | Result |
 | --- | --- |
 | FlatBuffers | Full build and both CTest entries pass after supporting internal source symlinks. No eligible private static links in this configuration. |
-| Google Benchmark | 18 removals validated; all 87 CTest entries pass. A `benchmark.cc` edit measures 3.541 → 3.542 s: inconclusive. |
+| Google Benchmark | 18 removals validated; all 87 CTest entries pass. A `benchmark.cc` edit stays inconclusive (3.541 → 3.542 s). Editing `benchmark_main.cc` measures 1.072 → 0.781 s, with 20 → 2 links. No PR for this 0.29-second saving. |
 | Draco | Test executables build, but upstream registers no CTest entries. Validation stops; no patch or speedup is accepted. |
 
 [Revisions, options and runs](evidence/repo-evaluation-summary.json).
@@ -41,7 +41,7 @@ These are warm incremental builds after comment edits; no clean-build gain is cl
 The generated patch is 31,980 bytes. [Draft Highway #3509](https://github.com/google/highway/pull/3509)
 keeps 83 test-library removals in 21 lines, omitting the separate example change.
 Its affected-target build commands match the generated patch locally with Clang 21;
-standalone, shared and no-contrib commands stay unchanged. Full upstream tests are pending. [Settings and samples](evidence/highway-v013-summary.json).
+standalone, shared and no-contrib commands stay unchanged. Full upstream test results are tracked in that PR. [Settings and samples](evidence/highway-v013-summary.json).
 
 ## 22 October rerun
 

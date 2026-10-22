@@ -48,12 +48,12 @@ La recherche groupée retire 40 liens inutiles en un essai sur un projet de test
 | Projet | Ce qui est validé |
 | --- | --- |
 | XGrammar | Modification de GoogleMock : **34,639 → 2,367 s**, avec les 83 tests réussis. Modifier le parseur ne donne aucun gain confirmé. Le patch est déjà dans la [draft #1005](https://github.com/mlc-ai/xgrammar/pull/1005). |
-| Highway | Après la [PR #3502 mergée](https://github.com/google/highway/pull/3502), 84 autres liens inutiles ont été retirés et validés sur 77 targets. Une modification de `vqsort.cc` mesure **3,405 → 1,641 s**, avec **81 → 18** liens, 2 784 tests réussis et les mêmes 23 exceptions. La [draft #3509](https://github.com/google/highway/pull/3509) garde 83 retraits en 21 lignes ; ses tests complets restent en cours. |
+| Highway | Après la [PR #3502 mergée](https://github.com/google/highway/pull/3502), 84 autres liens inutiles ont été retirés et validés sur 77 targets. Une modification de `vqsort.cc` mesure **3,405 → 1,641 s**, avec **81 → 18** liens, 2 784 tests réussis et les mêmes 23 exceptions. La [draft #3509](https://github.com/google/highway/pull/3509) garde 83 retraits en 21 lignes ; les résultats de ses tests complets y sont suivis. |
 | SentencePiece | Les alias permettent d’examiner neuf liens dans six exécutables. Les bibliothèques contribuent toutes du code ; aucun retrait n’est proposé. |
 | Snappy | Le build de référence passe. Ses six liens pris en charge utilisent les bibliothèques ; aucun retrait n’est proposé. |
 | MuJoCo | Les 3 519 tests passent. Sur 236 liens éligibles, les 50 configurations essayées sont rejetées. Aucun patch ni gain n’est validé. |
 
-Le workflow générique a aussi testé FlatBuffers (deux entrées CTest réussies, aucun lien éligible), Google Benchmark (18 retraits et 87 tests réussis, sans gain mesuré) et Draco (bloqué car aucun test CTest n’est déclaré).
+Le workflow générique a aussi testé FlatBuffers (deux entrées CTest réussies, aucun lien éligible), Google Benchmark (18 retraits et 87 tests réussis ; une modification de `benchmark_main.cc` gagne 0,29 s, trop peu pour une PR) et Draco (bloqué car aucun test CTest n’est déclaré).
 
 Le gain XGrammar concerne les modifications de GoogleMock, sans gain général démontré sur un build complet. La mesure Highway porte sur une révision après le premier nettoyage ; les modifications de `targets.cc` restent sans gain démontré. [Révisions, configuration et résultats bruts](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md).
 

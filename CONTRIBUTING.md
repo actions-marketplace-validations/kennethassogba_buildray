@@ -1,5 +1,7 @@
 # Contributing
 
+Documentation changes run the site build and link checks. Code, build, Action and workflow changes also run the C++ tests.
+
 Keep changes small and include a test that exercises the behavior being changed.
 Use real before/after measurements for performance claims. A passing build alone
 does not prove a speedup.
