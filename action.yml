@@ -1,4 +1,4 @@
-name: Buildray
+name: Buildray build time
 description: Measure C++ build times and validate include and dependency cleanup.
 author: Kenneth Assogba
 branding:
