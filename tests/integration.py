@@ -188,14 +188,21 @@ with tempfile.TemporaryDirectory(prefix="buildray integration ") as directory:
     (internal / "nested").mkdir()
     (internal / "nested/chain.hpp").symlink_to("../header.hpp")
     (internal / "alias").symlink_to("nested", target_is_directory=True)
-    (internal / "main file.cpp").write_text('#include "alias/chain.hpp"\nint main() { return answer(); }\n')
+    (internal / "main file.cpp").unlink()
+    (internal / "actual.cpp").write_text('#include <vector>\n#include "alias/chain.hpp"\nint main() { return answer(); }\n')
+    (internal / "main file.cpp").symlink_to("actual.cpp")
     internal_result = root / "internal-links-result"
     optimize(internal, internal_result)
+    assert json.loads((internal_result / "report.json").read_text())["removed_includes"] == 1
+    assert "-#include <vector>" in (internal_result / "includes.patch").read_text()
+    run("git", "apply", "--check", str(internal_result / "includes.patch"), cwd=internal)
+    assert "#include <vector>" in (internal / "actual.cpp").read_text()
     for variant in ["baseline", "candidate"]:
         tree = internal_result / f"{variant}-source"
         assert (tree / "header.hpp").readlink() == Path("real.hpp")
         assert (tree / "nested/chain.hpp").resolve() == tree / "real.hpp"
         assert (tree / "alias").resolve() == tree / "nested"
+        assert (tree / "main file.cpp").readlink() == Path("actual.cpp")
         assert (tree / "real.hpp").read_text() == (internal / "real.hpp").read_text()
     assert (internal / "header.hpp").is_symlink()
     original_header = (internal / "real.hpp").read_text()
