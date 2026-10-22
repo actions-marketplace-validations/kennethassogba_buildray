@@ -53,7 +53,7 @@ The grouped search removes 40 unused links in one trial on a test project, inclu
 | Snappy | The baseline passes. All six supported links contribute archive objects; no removal is proposed. |
 | MuJoCo | 3,519 tests pass. On 236 eligible links, all 50 trial configurations are rejected. No patch or speedup is validated. |
 
-The generic workflow also checked FlatBuffers (two CTest entries pass; no eligible link), Google Benchmark (18 removals and 87 passing tests; no measured gain) and Draco (blocked because no CTest entries are registered).
+The generic workflow also checked FlatBuffers (two CTest entries pass; no eligible link), Google Benchmark (18 removals and 87 passing tests; a `benchmark_main.cc` edit saves 0.29 s, too little for an upstream PR) and Draco (blocked because no CTest entries are registered).
 
 The XGrammar gain concerns changes to GoogleMock, not a general clean-build speedup. The Highway timing comes from a revision after the first cleanup merged; `targets.cc` edits remain inconclusive. [Pinned revisions, settings and raw results](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md).
 

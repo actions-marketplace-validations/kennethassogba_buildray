@@ -53,7 +53,7 @@ La recherche groupée retire 40 liens inutiles en un essai sur un projet de test
 | Snappy | Le build de référence passe. Ses six liens pris en charge utilisent les bibliothèques ; aucun retrait n’est proposé. |
 | MuJoCo | Les 3 519 tests passent. Sur 236 liens éligibles, les 50 configurations essayées sont rejetées. Aucun patch ni gain n’est validé. |
 
-Le workflow générique a aussi testé FlatBuffers (deux entrées CTest réussies, aucun lien éligible), Google Benchmark (18 retraits et 87 tests réussis, sans gain mesuré) et Draco (bloqué car aucun test CTest n’est déclaré).
+Le workflow générique a aussi testé FlatBuffers (deux entrées CTest réussies, aucun lien éligible), Google Benchmark (18 retraits et 87 tests réussis ; une modification de `benchmark_main.cc` gagne 0,29 s, trop peu pour une PR) et Draco (bloqué car aucun test CTest n’est déclaré).
 
 Le gain XGrammar concerne les modifications de GoogleMock, sans gain général démontré sur un build complet. La mesure Highway porte sur une révision après le premier nettoyage ; les modifications de `targets.cc` restent sans gain démontré. [Révisions, configuration et résultats bruts](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies-validation.md).
 
