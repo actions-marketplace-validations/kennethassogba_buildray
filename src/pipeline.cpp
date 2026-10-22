@@ -16,6 +16,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
+#include <system_error>
 #include <utility>
 
 #include "buildray/core.hpp"
@@ -51,24 +52,43 @@ void checked(const std::vector<std::string>& args, const fs::path& cwd, const fs
 }
 
 void snapshot(const fs::path& source, const fs::path& destination, const fs::path& work) {
-    fs::create_directories(destination);
-    for (const auto& entry : fs::directory_iterator(source)) {
-        const auto name = entry.path().filename().string();
-        if (name == ".git" || name == ".buildray" || name == ".cache" ||
-            absolute_path(entry.path()) == work)
-            continue;
-        if (entry.is_symlink()) {
-            // Following a link could escape the snapshot or modify external files.
-            throw std::runtime_error("Source symlinks are not supported yet: " +
-                                     entry.path().string());
+    const auto root = absolute_path(source);
+    std::vector<std::pair<fs::path, fs::path>> links;
+    const auto copy = [&](const auto& self, const fs::path& from, const fs::path& to) -> void {
+        fs::create_directories(to);
+        for (const auto& entry : fs::directory_iterator(from)) {
+            const auto name = entry.path().filename().string();
+            if (name == ".git" || name == ".buildray" || name == ".cache" ||
+                absolute_path(entry.path()) == work)
+                continue;
+            const auto target = to / entry.path().filename();
+            if (entry.is_symlink()) {
+                const auto link = fs::read_symlink(entry.path());
+                std::error_code error;
+                const auto resolved = fs::canonical(entry.path(), error);
+                if (link.is_absolute() || error || !within(resolved, root) ||
+                    !fs::is_regular_file(resolved))
+                    throw std::runtime_error("Source symlink must point to a copied file using a relative path: " +
+                                             entry.path().string());
+                links.emplace_back(target, link);
+                continue;
+            }
+            if (entry.is_directory()) {
+                if (fs::exists(entry.path() / "CMakeCache.txt")) continue;
+                self(self, entry.path(), target);
+            } else if (entry.is_regular_file()) {
+                fs::copy_file(entry.path(), target);
+            }
         }
-        const auto target = destination / entry.path().filename();
-        if (entry.is_directory()) {
-            if (fs::exists(entry.path() / "CMakeCache.txt")) continue;
-            snapshot(entry.path(), target, work);
-        } else if (entry.is_regular_file()) {
-            fs::copy_file(entry.path(), target);
-        }
+    };
+    copy(copy, source, destination);
+    // Create chains after copying files, then check their destinations in the copy.
+    for (const auto& [path, link] : links) fs::create_symlink(link, path);
+    for (const auto& [path, link] : links) {
+        std::error_code error;
+        const auto resolved = fs::canonical(path, error);
+        if (error || !within(resolved, destination) || !fs::is_regular_file(resolved))
+            throw std::runtime_error("Source symlink points outside the copied files: " + path.string());
     }
 }
 
