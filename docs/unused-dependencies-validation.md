@@ -16,6 +16,18 @@ in some targets; these results describe the common LLD profile, not its default
 linker. PCH, Unity and compiler caches are disabled. Configuration, analysis,
 link replays and tests are outside build timings.
 
+## New repositories through the generic workflow
+
+The `Evaluate a repository` workflow was exercised on three pinned projects:
+
+| Project | Result |
+| --- | --- |
+| FlatBuffers | Full build and both CTest entries pass after supporting internal source symlinks. No eligible private static links in this configuration. |
+| Google Benchmark | 18 removals validated; all 87 CTest entries pass. A `benchmark.cc` edit measures 3.541 → 3.542 s: inconclusive. |
+| Draco | Test executables build, but upstream registers no CTest entries. Validation stops; no patch or speedup is accepted. |
+
+[Revisions, options and runs](evidence/repo-evaluation-summary.json).
+
 ## Highway after the first merged cleanup
 
 [Run 39804757110](https://github.com/kennethassogba/buildray/actions/runs/39804757110)
@@ -26,8 +38,10 @@ commands are preserved and replayed links produce identical executables.
 Three alternating pairs at four jobs measure `vqsort.cc` edits at **3.405 → 1.641 s**,
 with **81 → 18** links. The `targets.cc` edit remains inconclusive: **4.493 → 4.495 s**.
 These are warm incremental builds after comment edits; no clean-build gain is claimed.
-The generated patch is 31,980 bytes and needs a compact equivalent, then validation,
-before an upstream PR. [Settings and samples](evidence/highway-v013-summary.json).
+The generated patch is 31,980 bytes. [Draft Highway #3509](https://github.com/google/highway/pull/3509)
+keeps 83 test-library removals in 21 lines, omitting the separate example change.
+Its affected-target build commands match the generated patch locally with Clang 21;
+standalone, shared and no-contrib commands stay unchanged. Full upstream tests are pending. [Settings and samples](evidence/highway-v013-summary.json).
 
 ## 22 October rerun
 

@@ -37,7 +37,7 @@
   "patch_validated": true,
   "clean_builds_measured": false,
   "patch_bytes": 31980,
-  "upstream_status": "Generated patch still needs a compact equivalent and validation before submission.",
+  "upstream_status": "Draft #3509 keeps a compact test-library-only patch; its full upstream test run is pending.",
   "scenarios": [
     {
       "file": "hwy/contrib/sort/vqsort.cc",
@@ -75,5 +75,28 @@
         4.494993481
       ]
     }
-  ]
+  ],
+  "compact_patch": {
+    "pull_request": "https://github.com/google/highway/pull/3509",
+    "removed_test_links": 83,
+    "added_lines": 21,
+    "local_equivalence": "Clang 21 compiler and build commands match the tested generated patch for affected targets; standalone, shared and no-contrib configurations are unchanged. This is configuration equivalence, not a new full test run.",
+    "configuration_checks": [
+      {
+        "configuration": "standalone",
+        "all_build_commands_unchanged": true,
+        "compiler_commands_unchanged": true
+      },
+      {
+        "configuration": "shared",
+        "all_build_commands_unchanged": true,
+        "compiler_commands_unchanged": true
+      },
+      {
+        "configuration": "without-contrib",
+        "all_build_commands_unchanged": true,
+        "compiler_commands_unchanged": true
+      }
+    ]
+  }
 }

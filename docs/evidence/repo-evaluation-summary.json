@@ -1,0 +1,69 @@
+[
+  {
+    "repository": "google/flatbuffers",
+    "revision": "6dda43bbaa9961ad913ce949f8ebd08f3062fae2",
+    "workflow": "https://github.com/kennethassogba/buildray/actions/runs/39834178190",
+    "report_sha256": "e5b02ad84015919f504b98bba5589e0fc3b24c2a100700a3306a4389f91eef7f",
+    "status": "passed",
+    "baseline_tests_passed": 2,
+    "eligible_links": 0,
+    "removed_links": 0,
+    "performance_result": "no_changes",
+    "cmake_args": [
+      "-DFLATBUFFERS_BUILD_TESTS=ON",
+      "-DFLATBUFFERS_BUILD_CPP17=ON",
+      "-DFLATBUFFERS_ENABLE_PCH=OFF",
+      "-DFLATBUFFERS_LIBCXX_WITH_CLANG=OFF",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DCMAKE_LINKER_TYPE=BUILDRAY",
+      "-DCMAKE_C_USING_LINKER_BUILDRAY=--ld-path='/usr/bin/ld.lld-21'",
+      "-DCMAKE_CXX_USING_LINKER_BUILDRAY=--ld-path='/usr/bin/ld.lld-21'"
+    ],
+    "buildray_revision": "cfd2147d9d45110c559b47a750d4ef9f1489faee"
+  },
+  {
+    "repository": "google/benchmark",
+    "revision": "1fa8ea1c0d5f580748c2217efcad301729a8285c",
+    "workflow": "https://github.com/kennethassogba/buildray/actions/runs/39832708343",
+    "report_sha256": "93e8a598e62f253fda48f0a4668caf90abf60ac38fb7294c4c00f6ad39e776c3",
+    "status": "passed",
+    "baseline_tests_passed": 87,
+    "candidate_tests_passed": 87,
+    "eligible_links": 84,
+    "removed_links": 18,
+    "performance_result": "not_measured",
+    "cmake_args": [
+      "-DBENCHMARK_ENABLE_TESTING=ON",
+      "-DBENCHMARK_DOWNLOAD_DEPENDENCIES=ON",
+      "-DBUILD_SHARED_LIBS=OFF",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DCMAKE_LINKER_TYPE=BUILDRAY",
+      "-DCMAKE_C_USING_LINKER_BUILDRAY=--ld-path='/usr/bin/ld.lld-21'",
+      "-DCMAKE_CXX_USING_LINKER_BUILDRAY=--ld-path='/usr/bin/ld.lld-21'"
+    ],
+    "incremental": {
+      "file": "src/benchmark.cc",
+      "before_seconds": 3.541415105,
+      "after_seconds": 3.542218147,
+      "result": "inconclusive"
+    },
+    "buildray_revision": "80caaa3b5ab0594b1cc56d9bd517428528907bf5"
+  },
+  {
+    "repository": "google/draco",
+    "revision": "d429de84b52a860705507da0884764c5d8321423",
+    "workflow": "https://github.com/kennethassogba/buildray/actions/runs/39832090833",
+    "report_sha256": "eba3b8367158d6a88d34781733b900efef3e71a74b0e493b797318ac20b68d63",
+    "status": "failed",
+    "error": "No CTest tests registered. Enable project tests, or explicitly use --allow-no-tests (build-only validation).",
+    "cmake_args": [
+      "-DDRACO_TESTS=ON",
+      "-DBUILD_SHARED_LIBS=OFF",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DCMAKE_LINKER_TYPE=BUILDRAY",
+      "-DCMAKE_C_USING_LINKER_BUILDRAY=--ld-path='/usr/bin/ld.lld-21'",
+      "-DCMAKE_CXX_USING_LINKER_BUILDRAY=--ld-path='/usr/bin/ld.lld-21'"
+    ],
+    "buildray_revision": "80caaa3b5ab0594b1cc56d9bd517428528907bf5"
+  }
+]
