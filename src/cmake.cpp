@@ -208,10 +208,16 @@ std::optional<Token> literal_link(const std::string& source, const std::string& 
 using Location = std::pair<std::string, std::size_t>;
 using Trace = std::map<Location, std::vector<json::Array>>;
 
-Trace link_trace(const fs::path& path, const fs::path& source) {
+struct EvaluatedLinks {
+    Trace links;
+    std::map<std::string, std::string> aliases;
+};
+
+EvaluatedLinks link_trace(const fs::path& path, const fs::path& source) {
     std::ifstream input(path);
     if (!input) throw std::runtime_error("Missing expanded CMake trace: " + path.string());
-    Trace result;
+    EvaluatedLinks result;
+    std::set<std::string> ambiguous_aliases;
     std::string line;
     while (std::getline(input, line)) {
         auto value = json::parse(line);
@@ -219,16 +225,26 @@ Trace link_trace(const fs::path& path, const fs::path& source) {
         const auto* row = value->getAsObject();
         if (!row) continue;
         const auto command = row->getString("cmd");
-        if (!command || !command->equals_insensitive("target_link_libraries")) continue;
+        if (!command || (!command->equals_insensitive("target_link_libraries") &&
+                         !command->equals_insensitive("add_library"))) continue;
         const auto file = row->getString("file");
         const auto number = row->getInteger("line");
         const auto* args = row->getArray("args");
         if (!file || !number || *number < 1 || !args) continue;
         const auto absolute = absolute_path(file->str());
         if (!within(absolute, source)) continue;
-        result[{absolute.lexically_relative(source).generic_string(), static_cast<std::size_t>(*number)}]
-            .push_back(json::Array(*args));
+        if (command->equals_insensitive("add_library") && args->size() == 3 &&
+            (*args)[1].getAsString() == "ALIAS") {
+            const auto alias = (*args)[0].getAsString(), target = (*args)[2].getAsString();
+            if (!alias || !target || !name(alias->str()) || !name(target->str())) continue;
+            const auto [entry, inserted] = result.aliases.emplace(alias->str(), target->str());
+            if (!inserted && entry->second != *target) ambiguous_aliases.insert(alias->str());
+        } else if (command->equals_insensitive("target_link_libraries")) {
+            result.links[{absolute.lexically_relative(source).generic_string(), static_cast<std::size_t>(*number)}]
+                .push_back(json::Array(*args));
+        }
     }
+    for (const auto& alias : ambiguous_aliases) result.aliases.erase(alias);
     return result;
 }
 
@@ -311,7 +327,10 @@ std::optional<json::Object> variable_link(const std::string& source, const std::
 json::Object unused_link_candidates(const json::Object& graph, const fs::path& source,
                                     const Options& options, const fs::path& trace,
                                     const fs::path& traced_source) {
-    const auto executions = link_trace(trace, absolute_path(traced_source));
+    const auto evaluated = link_trace(trace, absolute_path(traced_source));
+    auto requested_dependency = options.dependency;
+    if (const auto found = evaluated.aliases.find(requested_dependency); found != evaluated.aliases.end())
+        requested_dependency = found->second;
     std::map<std::string, std::string> types, artifacts;
     for (const auto& value : array(graph, "targets")) {
         const auto& row = *value.getAsObject();
@@ -330,7 +349,7 @@ json::Object unused_link_candidates(const json::Object& graph, const fs::path& s
             types[to] != "STATIC_LIBRARY" || has(interface, from, to) ||
             !artifacts[from].starts_with("<BUILD>/") || !artifacts[to].starts_with("<BUILD>/") ||
             (!options.target.empty() && options.target != from) ||
-            (!options.dependency.empty() && options.dependency != to)) continue;
+            (!requested_dependency.empty() && requested_dependency != to)) continue;
         const auto file = edge.getString("file");
         const auto line = edge.getInteger("line");
         if (!file || !file->starts_with("<SOURCE>/") || !line || *line < 1) continue;
@@ -339,27 +358,41 @@ json::Object unused_link_candidates(const json::Object& graph, const fs::path& s
             !fs::is_regular_file(source / path) || path.string().find_first_of("\n\r\t") != std::string::npos ||
             std::ranges::any_of(options.exclusions, [&](const fs::path& p) { return within(path, p); })) continue;
         const auto contents = read_file(source / path);
-        const auto token = literal_link(contents, from, to, static_cast<std::size_t>(*line), true);
+        // File API edges name the real target; source declarations may use its
+        // alias. Keep that spelling in the patch and the real identity in proof.
+        std::vector<std::string> spellings{to};
+        for (const auto& [alias, target] : evaluated.aliases)
+            if (target == to) spellings.push_back(alias);
         json::Object declaration;
-        if (token) {
-            const auto call = literal_link(contents, from, to, static_cast<std::size_t>(*line), true, true);
-            declaration = json::Object{{"offset", static_cast<std::int64_t>(token->offset)},
-                {"length", static_cast<std::int64_t>(token->text.size())},
-                {"call_offset", static_cast<std::int64_t>(call->offset)},
-                {"call_length", static_cast<std::int64_t>(call->text.size())}};
-        } else {
-            const auto found = executions.find({path.generic_string(), static_cast<std::size_t>(*line)});
-            if (found == executions.end()) continue;
-            auto expanded = variable_link(contents, from, to, static_cast<std::size_t>(*line), found->second);
-            if (!expanded) continue;
-            declaration = std::move(*expanded);
+        std::string dependency;
+        bool ambiguous = false;
+        for (const auto& spelling : spellings) {
+            json::Object proposal;
+            if (const auto token = literal_link(contents, from, spelling, static_cast<std::size_t>(*line), true)) {
+                const auto call = literal_link(contents, from, spelling, static_cast<std::size_t>(*line), true, true);
+                proposal = json::Object{{"offset", static_cast<std::int64_t>(token->offset)},
+                    {"length", static_cast<std::int64_t>(token->text.size())},
+                    {"call_offset", static_cast<std::int64_t>(call->offset)},
+                    {"call_length", static_cast<std::int64_t>(call->text.size())}};
+            } else {
+                const auto found = evaluated.links.find({path.generic_string(), static_cast<std::size_t>(*line)});
+                if (found == evaluated.links.end()) continue;
+                auto expanded = variable_link(contents, from, spelling, static_cast<std::size_t>(*line), found->second);
+                if (!expanded) continue;
+                proposal = std::move(*expanded);
+            }
+            if (!dependency.empty()) { ambiguous = true; break; }
+            dependency = spelling;
+            declaration = std::move(proposal);
         }
+        if (dependency.empty() || ambiguous) continue;
         const auto call_offset = static_cast<std::size_t>(*declaration.getInteger("call_offset"));
         const auto newline = contents.rfind('\n', call_offset);
         const auto begin = newline == std::string::npos ? 0 : newline + 1;
         if (contents.substr(begin, call_offset - begin).find_first_not_of(" \t") != std::string::npos) continue;
         declaration["target"] = from;
-        declaration["dependency"] = to;
+        declaration["dependency"] = dependency;
+        declaration["dependency_target"] = to;
         declaration["file"] = path.generic_string();
         declaration["line"] = *line;
         declaration["output"] = artifacts[from];
@@ -568,7 +601,8 @@ void verify_link_removals(const json::Object& before, const json::Object& after,
     auto expected = relations(before), actual = relations(after);
     for (const auto& value : selections) {
         const auto& row = *value.getAsObject();
-        const auto from = string(row, "target"), to = string(row, "dependency");
+        const auto from = string(row, "target");
+        const auto to = row.getString("dependency_target").value_or(string(row, "dependency")).str();
         for (const auto* kind : {"linkLibraries", "compileDependencies", "interfaceLinkLibraries", "interfaceCompileDependencies"})
             if (!row.getBoolean("compile_only").value_or(false) ||
                 (std::string_view(kind) != "compileDependencies" && std::string_view(kind) != "interfaceCompileDependencies"))

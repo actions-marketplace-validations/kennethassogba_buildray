@@ -88,6 +88,31 @@ add_test(NAME works COMMAND sample)
     run('cmake', '--build', root / 'applied', '--parallel', 2)
     run('ctest', '--test-dir', root / 'applied', '--output-on-failure')
 
+    # Match aliases against the evaluated target while keeping their spelling.
+    for label, alias, variable in [('alias', 'unused_alias', False),
+                                   ('alias-variable', 'unused::dead', True)]:
+        aliased = original.replace('add_executable(sample main.cpp part.c)',
+                                   f'add_library({alias} ALIAS dead)\nadd_executable(sample main.cpp part.c)')
+        aliased = aliased.replace('PRIVATE dead', 'PRIVATE ${links}' if variable else f'PRIVATE {alias}')
+        if variable:
+            aliased = aliased.replace('target_link_libraries(sample', f'set(links {alias})\ntarget_link_libraries(sample')
+            aliased += 'target_compile_definitions(dead INTERFACE ALIAS_DEFINE=1)\n'
+        cmake.write_text(aliased)
+        alias_work, aliased_report = invoke(label, '--dependency', alias)
+        assert aliased_report['patch_validated'] and aliased_report['removed_links'] == 1
+        selected = aliased_report['selected_link']
+        assert selected['dependency'] == alias and selected['dependency_target'] == 'dead'
+        assert selected['compile_only'] == variable
+        assert aliased_report['link_evidence']['changed_links'][0]['identical_elf']
+        run('git', 'apply', '--check', alias_work / 'cmake.patch', cwd=source)
+
+    # A public alias remains an exported dependency and cannot be pruned.
+    cmake.write_text(original.replace('add_executable(sample main.cpp part.c)',
+                     'add_library(unused::dead ALIAS dead)\nadd_executable(sample main.cpp part.c)')
+                    .replace('PRIVATE dead', 'PUBLIC unused::dead'))
+    _, public_alias = invoke('public-alias')
+    assert not public_alias['patch_validated'] and public_alias['removed_links'] == 0
+
     # CMake may drop a redundant copy of a used archive as a side effect of
     # removing an unused dependency. The remaining copy must still link it.
     saved_main = (source / 'main.cpp').read_text()
@@ -122,6 +147,7 @@ add_test(NAME works COMMAND sample)
         assert not (w / 'cmake.patch').exists()
         if reason:
             assert any(reason in row.get('reason', '') for row in result['dependency_trials']), result
+        return w, result
 
     # Keep compile usage requirements while dropping an unused archive. Older CMake
     # retains the original declaration rather than seeing an unsupported expression.
@@ -157,6 +183,17 @@ if(NOT "dead" IN_LIST deps)
   set_target_properties(other PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endif()
 ''', reason='outside the removed archives')
+    # Reject extra linker flag changes and preserve the exact argv for diagnosis.
+    changed_work, _ = rejected('changed-link-flag', addition='''get_target_property(links sample LINK_LIBRARIES)
+if(NOT "dead" IN_LIST links)
+  target_link_options(sample PRIVATE "-Wl,--no-undefined")
+endif()
+''', reason='Link command changed more than removing explicit static archives')
+    diagnostics = list((changed_work / 'dependency-trials').rglob('link-command-change.json'))
+    assert diagnostics
+    difference = json.loads(diagnostics[0].read_text())
+    assert '-Wl,--no-undefined' not in difference['baseline']
+    assert '-Wl,--no-undefined' in difference['candidate']
     rejected('public', replacement=original.replace('PRIVATE dead', 'PUBLIC dead'))
     rejected('shared', replacement=original.replace('dead STATIC', 'dead SHARED'))
     cmake.write_text(original.replace('target_link_libraries(sample PRIVATE dead)',

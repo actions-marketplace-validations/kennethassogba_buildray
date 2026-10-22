@@ -65,6 +65,8 @@ Les noms de cibles et les listes de bibliothèques peuvent utiliser des variable
 
 Ce mode demande ELF LLD, choisi explicitement pour les deux versions. Si une bibliothèque fournit seulement des headers ou des paramètres de compilation, le patch peut les conserver tout en retirant le lien. Ajoutez `--rebuild-file` pour vérifier si une modification déclenche moins de liens. La [référence de la commande](https://github.com/kennethassogba/buildray/blob/main/docs/unused-dependencies.md) donne la configuration et les limites.
 
+Les dépendances peuvent aussi être des alias CMake. Buildray vérifie la bibliothèque désignée, garde la définition de l’alias et conserve son nom dans le patch. Si un autre argument du linker change, l’essai est rejeté et les deux commandes sont conservées dans `link-command-change.json`.
+
 La recherche est limitée par défaut à 64 configurations d’essai et 300 secondes. Modifiez ces limites avec `--max-dependency-trials` et `--dependency-time-budget`. Le build final et les tests ont quand même lieu une fois ce budget atteint.
 
 Si votre projet ignore volontairement certains tests, utilisez `--allow-baseline-skips`. Buildray les compte à part et exige que les mêmes tests restent ignorés après le patch et chaque modification de fichier mesurée. Ils ne comptent jamais comme réussis. Les tests désactivés, les échecs et une exécution où tous les tests sont ignorés bloquent toujours la validation.
