@@ -1,0 +1,32 @@
+name: Released Action smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - id: buildray
+        uses: kennethassogba/buildray@f57d6f839b08d11a91a21d72b84441d574cec980 # v0.13.0
+        with:
+          source: tests/fixtures/action
+          baseline-ref: ''
+          runs: '1'
+          artifact-name: released-action-smoke
+      - name: Check the published Action's report
+        env:
+          BUILDRAY_REPORT: ${{ steps.buildray.outputs.report }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path(os.environ['BUILDRAY_REPORT']).read_text())
+          assert report['status'] == 'passed', report
+          assert report['baseline_tests_passed'] > 0, report
+          PY
